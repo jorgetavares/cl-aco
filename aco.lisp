@@ -21,7 +21,7 @@
   (beta 2.0)
   (rho 0.5)
   (max-tours 100)
-  (max-iterations 5000)
+  (max-iterations 15000)
   (decision-rule #'as-decision)
   (eval-tour #'symmetric-tsp)
   )
@@ -167,7 +167,7 @@
 						:key #'(lambda (x) 
 							 (nth x distances-list))))))))
 
-(defun init-pheromone (n &optional (value 100))
+(defun init-pheromone (n &optional (value 0.5))
   "Return a fresh pheromone matrix."
   (make-array `(,(1+ n) ,(1+ n)) :initial-element value))
   
@@ -458,6 +458,22 @@
 	   do (setf (aref choice-info i j)
 		    (* (expt (aref pheromone i j) alpha) 
 		       (expt (aref heuristic i j) beta))))))
+
+(defun hc-pheromone-update (ants n pheromone rho heuristic choice-info alpha beta)
+  "Hyper-cube mode to update pheromones in AS."
+  (loop for ant across ants
+     do  (let ((delta-k (/ 1 (ant-tour-length ant)))
+	       (delta-total (loop for ant-h across ants
+			       sum (/ 1 (ant-tour-length ant-h)))))
+	   (loop for i from 1 to n
+	      do (let* ((j (aref (ant-tour ant) i))
+			(l (aref (ant-tour ant) (1+ i)))
+			(value (+ (* (- 1 rho) (aref pheromone j l))
+				  (* rho (/ delta-k delta-total)))))
+		   (setf (aref pheromone j l) value
+			 (aref pheromone l j) value)))))
+  (update-choice-info n pheromone heuristic choice-info alpha beta))
+
 
 ;;;
 ;;; high-level functions
