@@ -29,6 +29,7 @@
 (defstruct state 
   (iterations 0)
   (best nil)
+  (flag 0)
   )
 
 
@@ -519,6 +520,35 @@
        do (setf (aref w-rank i)
 		(safe-copy-ant (aref full-rank i)))
        finally (return w-rank))))
+
+;; MMAS
+(defun mmas-pheromone-update (parameters colony stats state)
+  "Mïn-Max Ant System pheromone update method."
+ (let* ((ants (colony-ants colony))
+	(n (parameters-n parameters))
+	(pheromone (colony-pheromone colony))
+	(rho (parameters-rho parameters))
+	(heuristic (colony-heuristic colony))
+	(choice-info (colony-choice-info colony))
+	(alpha (parameters-alpha parameters))
+	(beta (parameters-beta parameters))
+	(best-so-far-ant (statistics-best-ant stats)))
+   (evaporate n pheromone rho)
+   (if (= 1 (mod (state-iterations state) (state-flag state)))
+       (deposit-pheromone best-so-far-ant n pheromone 1)
+       (let ((current-best-ant (find-best-ant (colony-n-ants colony) ants)))
+	 (deposit-pheromone current-best-ant n pheromone 1)))
+   (update-choice-info n pheromone heuristic choice-info alpha beta)))
+
+(defun find-best-ant (n-ants ants)
+  "Return the current best ant in the colony."
+  (loop 
+     with current = (aref ants 0)
+     for i from 1 below n-ants
+     when (< (ant-tour-length (aref ants i)) 
+	     (ant-tour-length current)) 
+     do (setf current (aref ants i))
+     finally (return current)))
 
 
 ;; HCF
