@@ -16,12 +16,12 @@
   (distances nil)
   (nearest-neighbors nil)
   (n-neighbors 20)
-  (n-ants 25)
+  (ant-system #'eas-pheromone-update)
+  (n-ants 51)
   (alpha 1.0)
   (beta 2.0)
-  (rho 0.5)
-  (max-tours 100)
-  (max-iterations 15000)
+  (rho 0.05)
+  (max-iterations 5000)
   (decision-rule #'as-decision)
   (eval-tour #'symmetric-tsp)
   )
@@ -50,6 +50,7 @@
   )
 
 (defstruct statistics
+  final-pheromones 
   best-ant
   best-iteration
   )
@@ -99,12 +100,12 @@
     (loop until (terminate parameters state)
        do (progn
 	    (construct-solutions parameters colony)
-	    (update-trails parameters colony)
 	    (let ((out (update-statistics colony stats state)))
 	      (increment-iteration state)
+	      (update-trails parameters colony stats)
 	      (when output-p
-		(output-state state out))
-	      )))
+		(output-state state out)))))
+    ;(setf (statistics-final-pheromones stats) (colony-pheromone colony))
     stats))
 
 
@@ -167,7 +168,7 @@
 						:key #'(lambda (x) 
 							 (nth x distances-list))))))))
 
-(defun init-pheromone (n &optional (value 0.5))
+(defun init-pheromone (n &optional (value 10))
   "Return a fresh pheromone matrix."
   (make-array `(,(1+ n) ,(1+ n)) :initial-element value))
   
@@ -415,23 +416,26 @@
 ;;; pheromone update
 ;;;    
 
-(defun update-trails (parameters colony)
+(defun update-trails (parameters colony stats)
   "Update the pheromone and heuristic trails."
-  (as-pheromone-update (colony-ants colony)
-		       (parameters-n parameters)
-		       (colony-pheromone colony)
-		       (parameters-rho parameters)
-		       (colony-heuristic colony)
-		       (colony-choice-info colony)
-		       (parameters-alpha parameters)
-		       (parameters-beta parameters)))
+  (funcall (parameters-ant-system parameters)
+	   parameters colony stats))
 
-(defun as-pheromone-update (ants n pheromone rho heuristic choice-info alpha beta)
+;; ant system
+(defun as-pheromone-update (parameters colony &optional stats)
   "Ant System pheromone update method."
-  (evaporate n pheromone rho)
-  (loop for ant across ants
-     do (deposit-pheromone ant n pheromone))
-  (update-choice-info n pheromone heuristic choice-info alpha beta))
+  (let ((ants (colony-ants colony))
+	(n (parameters-n parameters))
+	(pheromone (colony-pheromone colony))
+	(rho (parameters-rho parameters))
+	(heuristic (colony-heuristic colony))
+	(choice-info (colony-choice-info colony))
+	(alpha (parameters-alpha parameters))
+	(beta (parameters-beta parameters)))
+    (evaporate n pheromone rho)
+    (loop for ant across ants
+       do (deposit-pheromone ant n pheromone))
+    (update-choice-info n pheromone heuristic choice-info alpha beta)))
 
 (defun evaporate (n pheromone rho)
   "Removes some pheromone from the trails -- evaporation procedure."
@@ -440,7 +444,7 @@
 	   do (let ((value (* (- 1 rho) (aref pheromone i j))))
 		(setf (aref pheromone i j) value
 		      (aref pheromone J i) value)))))
-
+ 
 (defun deposit-pheromone (ant n pheromone)
   "Deposit pheromone in the trail according to AS method."
   (let ((delta (/ 1 (ant-tour-length ant))))
@@ -459,6 +463,40 @@
 		    (* (expt (aref pheromone i j) alpha) 
 		       (expt (aref heuristic i j) beta))))))
 
+;; elitist ant system
+(defun eas-pheromone-update (parameters colony stats)
+  "Elite Ant System pheromone update method."
+ (let ((ants (colony-ants colony))
+       (n (parameters-n parameters))
+       (pheromone (colony-pheromone colony))
+       (rho (parameters-rho parameters))
+       (heuristic (colony-heuristic colony))
+       (choice-info (colony-choice-info colony))
+       (alpha (parameters-alpha parameters))
+       (beta (parameters-beta parameters))
+       (best-so-far-ant (statistics-best-ant stats)))
+   (evaporate n pheromone rho)
+   (loop for ant across ants
+      do (deposit-pheromone-elitist ant n pheromone n best-so-far-ant))
+   (update-choice-info n pheromone heuristic choice-info alpha beta)))
+
+(defun deposit-pheromone-elitist (ant n pheromone e best-so-far)
+  "Deposit pheromone in the trail according to AS method."
+  (let ((delta (/ 1 (ant-tour-length ant)))
+	(delta-best (/ 1 (ant-tour-length best-so-far))))
+    (loop for i from 1 to n
+       do (let* ((j  (aref (ant-tour ant) i))
+		 (l  (aref (ant-tour ant) (1+ i)))
+		 (jb (aref (ant-tour best-so-far) i))
+		 (lb (aref (ant-tour best-so-far) (1+ i)))
+		 (value (+ delta (aref pheromone j l))))
+	    (when (and (= j jb) (= l lb))
+	      (setf value (+ value (* e delta-best))))
+	    (setf (aref pheromone j l) value
+		  (aref pheromone l j) value)))))
+
+
+;; HCF
 (defun hc-pheromone-update (ants n pheromone rho heuristic choice-info alpha beta)
   "Hyper-cube mode to update pheromones in AS."
   (loop for ant across ants
