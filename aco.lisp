@@ -16,12 +16,14 @@
   (distances nil)
   (nearest-neighbors nil)
   (n-neighbors 20)
-  (ant-system #'rank-pheromone-update)
   (n-ants 51)
   (alpha 1.0)
   (beta 2.0)
   (rho 0.05)
   (max-iterations 1000)
+  (ant-system :mmas)
+  (avg-cost 500)
+  (pheromone-update #'mmas-pheromone-update)
   (decision-rule #'as-decision)
   (eval-tour #'symmetric-tsp)
   )
@@ -46,6 +48,8 @@
   n-ants
   ants
   pheromone
+  trail-max
+  trail-min
   heuristic
   choice-info
   )
@@ -103,7 +107,7 @@
 	    (construct-solutions parameters colony)
 	    (let ((out (update-statistics colony stats state)))
 	      (increment-iteration state)
-	      (update-trails parameters colony stats)
+	      (update-trails parameters colony stats state)
 	      (when output-p
 		(output-state state out)))))
     ;(setf (statistics-final-pheromones stats) (colony-pheromone colony))
@@ -120,7 +124,8 @@
 	(init-ants (parameters-n-ants parameters)
 		   (parameters-n parameters)))
   (setf (colony-pheromone colony)
-	(init-pheromone (parameters-n parameters)))
+	(init-pheromone (parameters-n parameters) 
+			(colony-trail-max colony)))
   (setf (colony-choice-info colony)
 	(init-choice-info (parameters-n parameters)
 			  (colony-pheromone colony)
@@ -135,10 +140,13 @@
 	 (parameters (make-parameters
 		      :n (cl-tsplib:problem-instance-dimension tsp-instance)
 		      :distances (cl-tsplib:problem-instance-distance-matrix tsp-instance)))
+	 (trail-max (update-trail-max-value parameters (parameters-avg-cost parameters))) 
 	 (colony (make-colony :n-ants (parameters-n-ants parameters)
 			      :ants (init-ants (parameters-n-ants parameters)
 					       (parameters-n parameters))
-			      :pheromone (init-pheromone (parameters-n parameters))
+			      :pheromone (init-pheromone (parameters-n parameters) trail-max)
+			      :trail-max trail-max
+			      :trail-min (update-trail-min-value parameters trail-max)
 			      :heuristic (init-heuristic (parameters-n parameters)
 							 (parameters-distances parameters)))))
     (setf (parameters-nearest-neighbors parameters)
@@ -168,6 +176,18 @@
 		finally (return (remove i (sort (copy-list indexes) #'< 
 						:key #'(lambda (x) 
 							 (nth x distances-list))))))))
+
+(defun update-trail-max-value (parameters cost)
+  "Return initial pheromone value according to the Ant System."
+  (case (parameters-ant-system parameters)
+    (:mmas (/ 1 (* (parameters-rho parameters) cost)))
+    (otherwise 10)))
+
+(defun update-trail-min-value (parameters trail-max)
+  "Return initial lower bound pheromone value according to the Ant System."
+  (case (parameters-ant-system parameters)
+    (:mmas (/ trail-max (* 2 (parameters-n parameters))))
+    (otherwise 10)))
 
 (defun init-pheromone (n &optional (value 10))
   "Return a fresh pheromone matrix."
@@ -417,13 +437,13 @@
 ;;; pheromone update
 ;;;    
 
-(defun update-trails (parameters colony stats)
+(defun update-trails (parameters colony stats state)
   "Update the pheromone and heuristic trails."
-  (funcall (parameters-ant-system parameters)
-	   parameters colony stats))
+  (funcall (parameters-pheromone-update parameters)
+	   parameters colony stats state))
 
 ;; ant system
-(defun as-pheromone-update (parameters colony &optional stats)
+(defun as-pheromone-update (parameters colony stats state) 
   "Ant System pheromone update method."
   (let ((ants (colony-ants colony))
 	(n (parameters-n parameters))
@@ -465,7 +485,7 @@
 		       (expt (aref heuristic i j) beta))))))
 
 ;; elitist ant system
-(defun eas-pheromone-update (parameters colony stats)
+(defun eas-pheromone-update (parameters colony stats state)
   "Elite Ant System pheromone update method."
  (let ((ants (colony-ants colony))
        (n (parameters-n parameters))
@@ -484,7 +504,7 @@
    (update-choice-info n pheromone heuristic choice-info alpha beta)))
 
 ;; rank ant system
-(defun rank-pheromone-update (parameters colony stats)
+(defun rank-pheromone-update (parameters colony stats state)
   "Rank Ant System pheromone update method."
  (let* ((ants (colony-ants colony))
 	(n (parameters-n parameters))
@@ -538,7 +558,20 @@
        (deposit-pheromone best-so-far-ant n pheromone 1)
        (let ((current-best-ant (find-best-ant (colony-n-ants colony) ants)))
 	 (deposit-pheromone current-best-ant n pheromone 1)))
+   (verify-pheromone-limits (parameters-n paramters)
+			    (colony-pheromone colony)
+			    (colony-trail-max colony)
+			    (colony-trail-min colony))
    (update-choice-info n pheromone heuristic choice-info alpha beta)))
+
+(defun check-pheromone-limits (n pheromone max min)
+  "Checks for violations of pheromone limits and updates according to max and min values."
+  (loop for i from 1 to n
+     do (loop for j from 1 to n 
+	   when (< (aref pheromone i j) min)
+	   do (setf (aref pheromone i j) min)
+	   when (> (aref pheromone i j) max)
+	   do (setf (aref pheromone i j) max))))
 
 (defun find-best-ant (n-ants ants)
   "Return the current best ant in the colony."

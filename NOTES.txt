@@ -1,0 +1,4 @@
+2010/02/10
++ MMAS is incomplete. Requires the mechanism for restart and convergence analysis.
++ check the computation of the branching factor (MMAS essential)
++ refactor code to allow better multiple ant architectures
