@@ -21,17 +21,23 @@
   (beta 2.0)
   (rho 0.05)
   (max-iterations 1000)
-  (ant-system :mmas)
+  (ant-system :ras)
   (avg-cost 500)
-  (pheromone-update #'mmas-pheromone-update)
+  (pheromone-update #'rank-pheromone-update)
   (decision-rule #'as-decision)
   (eval-tour #'symmetric-tsp)
+  (lambda 0.05)
+  (convergence-function #'convergence-std-dev-avg)
   )
 
 (defstruct state 
   (iterations 0)
   (best nil)
   (flag 0)
+  (stagnation -1)
+  (current-best 0)
+  (pop-avg 0)
+  (pop-std-dev 0)  
   )
 
 
@@ -105,11 +111,11 @@
     (loop until (terminate parameters state)
        do (progn
 	    (construct-solutions parameters colony)
-	    (let ((out (update-statistics colony stats state)))
-	      (increment-iteration state)
-	      (update-trails parameters colony stats state)
-	      (when output-p
-		(output-state state out)))))
+	    (update-statistics parameters colony stats state)
+	    (increment-iteration state)
+	    (update-trails parameters colony stats state)
+	    (when output-p
+	      (output-state state stats))))
     ;(setf (statistics-final-pheromones stats) (colony-pheromone colony))
     stats))
 
@@ -245,8 +251,12 @@
 
 (defun output-state (state stats)
   "Prints simulation information."
-  (format t "~a ~a ~a ~a~%" (state-iterations state) 
-	  (float (first stats)) (float (second stats)) (float (third stats))))
+  (format t "~a ~a ~a ~a ~a ~%" 
+	  (state-iterations state) 
+	  (float (ant-tour-length (statistics-best-ant stats)))
+	  (float (state-current-best state)) 
+	  (float (state-pop-avg state))
+	  (float (state-stagnation state))))
 
 
 ;;;
@@ -323,6 +333,7 @@
 
 (defun as-decision (ant step n choice-info parameters)
   "Determines an ant next action to be executed (ant system, no candidates list)."
+  (declare (ignore parameters))
   (let* ((tour (ant-tour ant))
 	 (visited (ant-visited ant))
 	 (sum-probabilities 0.0)
@@ -445,6 +456,7 @@
 ;; ant system
 (defun as-pheromone-update (parameters colony stats state) 
   "Ant System pheromone update method."
+  (declare (ignore stats state))
   (let ((ants (colony-ants colony))
 	(n (parameters-n parameters))
 	(pheromone (colony-pheromone colony))
@@ -487,26 +499,8 @@
 ;; elitist ant system
 (defun eas-pheromone-update (parameters colony stats state)
   "Elite Ant System pheromone update method."
- (let ((ants (colony-ants colony))
-       (n (parameters-n parameters))
-       (pheromone (colony-pheromone colony))
-       (rho (parameters-rho parameters))
-       (heuristic (colony-heuristic colony))
-       (choice-info (colony-choice-info colony))
-       (alpha (parameters-alpha parameters))
-       (beta (parameters-beta parameters))
-       (e (parameters-n parameters))
-       (best-so-far-ant (statistics-best-ant stats)))
-   (evaporate n pheromone rho)
-   (loop for ant across ants
-      do (deposit-pheromone ant n pheromone 1))
-   (deposit-pheromone best-so-far-ant n pheromone e)
-   (update-choice-info n pheromone heuristic choice-info alpha beta)))
-
-;; rank ant system
-(defun rank-pheromone-update (parameters colony stats state)
-  "Rank Ant System pheromone update method."
- (let* ((ants (colony-ants colony))
+  (declare (ignore state))
+  (let ((ants (colony-ants colony))
 	(n (parameters-n parameters))
 	(pheromone (colony-pheromone colony))
 	(rho (parameters-rho parameters))
@@ -514,14 +508,34 @@
 	(choice-info (colony-choice-info colony))
 	(alpha (parameters-alpha parameters))
 	(beta (parameters-beta parameters))
-	(best-so-far-ant (statistics-best-ant stats))
-	(w 6)
-	(rank-ants (rank-w-ants (1- w) (colony-n-ants colony) ants)))
-   (evaporate n pheromone rho)
-   (loop for r from 1 below w 
-      do (deposit-pheromone (aref rank-ants (1- r)) n pheromone (- w r)))
-   (deposit-pheromone best-so-far-ant n pheromone w)
-   (update-choice-info n pheromone heuristic choice-info alpha beta)))
+	(e (parameters-n parameters))
+	(best-so-far-ant (statistics-best-ant stats)))
+    (evaporate n pheromone rho)
+    (loop for ant across ants
+       do (deposit-pheromone ant n pheromone 1))
+    (deposit-pheromone best-so-far-ant n pheromone e)
+    (update-choice-info n pheromone heuristic choice-info alpha beta)))
+
+;; rank ant system
+(defun rank-pheromone-update (parameters colony stats state)
+  "Rank Ant System pheromone update method."
+  (declare (ignore state))
+  (let* ((ants (colony-ants colony))
+	 (n (parameters-n parameters))
+	 (pheromone (colony-pheromone colony))
+	 (rho (parameters-rho parameters))
+	 (heuristic (colony-heuristic colony))
+	 (choice-info (colony-choice-info colony))
+	 (alpha (parameters-alpha parameters))
+	 (beta (parameters-beta parameters))
+	 (best-so-far-ant (statistics-best-ant stats))
+	 (w 6)
+	 (rank-ants (rank-w-ants (1- w) (colony-n-ants colony) ants)))
+    (evaporate n pheromone rho)
+    (loop for r from 1 below w 
+       do (deposit-pheromone (aref rank-ants (1- r)) n pheromone (- w r)))
+    (deposit-pheromone best-so-far-ant n pheromone w)
+    (update-choice-info n pheromone heuristic choice-info alpha beta)))
 
 (defun safe-copy-colony (n ants)
   (loop 
@@ -558,13 +572,13 @@
        (deposit-pheromone best-so-far-ant n pheromone 1)
        (let ((current-best-ant (find-best-ant (colony-n-ants colony) ants)))
 	 (deposit-pheromone current-best-ant n pheromone 1)))
-   (verify-pheromone-limits (parameters-n paramters)
+   (verify-pheromone-limits (parameters-n parameters)
 			    (colony-pheromone colony)
 			    (colony-trail-max colony)
 			    (colony-trail-min colony))
    (update-choice-info n pheromone heuristic choice-info alpha beta)))
 
-(defun check-pheromone-limits (n pheromone max min)
+(defun verify-pheromone-limits (n pheromone max min)
   "Checks for violations of pheromone limits and updates according to max and min values."
   (loop for i from 1 to n
      do (loop for j from 1 to n 
@@ -605,7 +619,7 @@
 ;;; high-level functions
 ;;;
 
-(defun update-statistics (colony stats state)
+(defun update-statistics (parameters colony stats state)
   "Update all the ACO stats."
   (loop with best = 10000000000 
      for ant across (colony-ants colony)
@@ -615,7 +629,57 @@
 	    (setf (statistics-best-ant stats) (safe-copy-ant ant)
 		  (statistics-best-iteration stats) (state-iterations state))))
      sum (ant-tour-length ant) into total
-     finally (return (list (ant-tour-length (statistics-best-ant stats)) 
-			   best (/ total (colony-n-ants colony))))))
+     finally (progn
+	       (setf (state-pop-avg state) (/ total (colony-n-ants colony)))
+	       (setf (state-pop-std-dev state) (std-dev (state-pop-avg state) colony))
+	       (setf (state-current-best state) best)
+	       (update-convergence-factor parameters colony state))))
+
+;;;
+;;; convergence measures
+;;;
+
+(defun update-convergence-factor (parameters colony state)
+  "Calculates convergence of the colony and updates the state."
+  (setf (state-stagnation state)
+	(funcall (parameters-convergence-function parameters) state colony)))
+
+(defun std-dev (avg-cost colony)
+  "Standard deviation of the colony solution cost."
+  (loop for ant across (colony-ants colony)
+     sum (- (ant-tour-length ant) avg-cost) into total
+     finally (return (/ total (colony-n-ants colony)))))
+
+(defun convergence-std-dev (state colony parameters)
+  (declare (ignore colony parameters))
+  (state-pop-std-dev state))
+
+(defun convergence-std-dev-avg (state colony parameters)
+  (declare (ignore colony parameters))
+  (/ (state-pop-std-dev state) (state-pop-avg state)))
+
+(defun branching-factor (state colony parameters)
+  (declare (ignore state))
+  (let* ((n (parameters-n parameters))
+	 (l (parameters-lambda parameters))
+	 (pheromone (colony-pheromone colony))
+	 (branches (make-array (1+ n) :initial-element 0)))
+    (loop for m from 1 to n
+       do (let ((min (aref pheromone m 1))
+		(max (aref pheromone m 1))
+		(cutoff 0))	      
+	    (loop for j from 2 to n
+	       do (let ((value (aref pheromone m j)))
+		    (when (> value max) (setf max value))
+		    (when (< value min) (setf min value))))
+	    (setf cutoff (+ min (* l (- max min))))
+	    (loop for i from 1 to n
+	       when (> (aref pheromone m i) cutoff) 
+	       do (incf (aref branches m)))))
+    (loop for m from 1 to n
+       sum (aref branches m) into total
+       finally (return (/ total * n 2)))))
+  
+
 
 
