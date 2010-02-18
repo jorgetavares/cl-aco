@@ -21,15 +21,15 @@
   (beta 2.0)
   (rho 0.05)
   (max-iterations 1000)
-  (ant-system :mmas)
+  (ant-system :as)
   (avg-cost 426)
-  (pheromone-update #'mmas-pheromone-update)
+  (pheromone-update #'as-pheromone-update)
   (decision-rule #'as-decision)
   (eval-tour #'symmetric-tsp)
   (lambda 0.05)
   (convergence-function #'branching-factor)
   (stagnation-limit 3)
-  (restart t)
+  (restart nil)
   (restart-iterations 250)
   )
 
@@ -207,15 +207,15 @@
   "Return initial pheromone value according to the Ant System."
   (case (parameters-ant-system parameters)
     (:mmas (/ 1 (* (parameters-rho parameters) cost)))
-    (otherwise 10)))
+    (otherwise 1)))
 
 (defun update-trail-min-value (parameters trail-max)
   "Return initial lower bound pheromone value according to the Ant System."
   (case (parameters-ant-system parameters)
     (:mmas (/ trail-max (* 2 (parameters-n parameters))))
-    (otherwise 10)))
+    (otherwise 1)))
 
-(defun init-pheromone (n &optional (value 10))
+(defun init-pheromone (n &optional (value 1))
   "Return a fresh pheromone matrix."
   (make-array `(,(1+ n) ,(1+ n)) :initial-element value))
   
@@ -259,9 +259,9 @@
     (let ((n (parameters-n parameters))
 	  (max (colony-trail-max colony))
 	  (pheromone (colony-pheromone colony)))
-      (format t "inside CF: ~a  PARAM: ~a MAX: ~a ~%" 
-	      (float (state-stagnation state))  (float (parameters-stagnation-limit parameters))
-	      (float max))
+     ; (format t "inside CF: ~a  PARAM: ~a MAX: ~a ~%" 
+     ;	      (float (state-stagnation state))  (float (parameters-stagnation-limit parameters))
+     ;	      (float max))
       (loop for i from 1 to n
 	 do (loop for j from 1 to n 
 	       do (setf (aref pheromone i j) max)))
@@ -619,7 +619,7 @@
 	 ;(format t "mmas deposit current best ~%")
 	 (deposit-pheromone current-best-ant n pheromone 1))
        (progn 
-	 (format t "mmas deposit best so far ~%")
+	 ;(format t "mmas deposit best so far ~%")
 	 (deposit-pheromone best-so-far-ant n pheromone 1)))
    (verify-pheromone-limits (parameters-n parameters)
 			    (colony-pheromone colony)
@@ -851,3 +851,16 @@
        finally (return (/ total n)))))
 
 ;; (debug-branch (make-array '(52 52) :initial-element 0.04) 51 0.05)
+
+
+;;;
+;;;
+;;;
+
+(defun run (&optional (runs 1))
+  (let ((stats (aco-tsp eil51 :runs runs :output nil)))
+    (loop with best = 10000000 
+       for s in stats
+       when (< (ant-tour-length (statistics-best-ant s)) best) do (setf best (ant-tour-length (statistics-best-ant s)))
+       sum (ant-tour-length (statistics-best-ant s)) into total
+       finally (return (list best (float (/ total runs)))))))
