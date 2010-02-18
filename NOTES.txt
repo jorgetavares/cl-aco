@@ -1,3 +1,8 @@
+2010/02/18
++ MMAS is working. However, still requires refinements (e.g., better update ant rule).
++ Ant algorithms must include an HCF version, especially MMAS.
++ Output statistics of algorithm runs is a priority
+
 2010/02/10
 + MMAS is incomplete. Requires the mechanism for restart and convergence analysis.
 + check the computation of the branching factor (MMAS essential)

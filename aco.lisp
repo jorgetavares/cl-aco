@@ -20,14 +20,17 @@
   (alpha 1.0)
   (beta 2.0)
   (rho 0.05)
-  (max-iterations 250)
-  (ant-system :ras)
-  (avg-cost 500)
-  (pheromone-update #'rank-pheromone-update)
+  (max-iterations 1000)
+  (ant-system :mmas)
+  (avg-cost 426)
+  (pheromone-update #'mmas-pheromone-update)
   (decision-rule #'as-decision)
   (eval-tour #'symmetric-tsp)
   (lambda 0.05)
   (convergence-function #'branching-factor)
+  (stagnation-limit 3)
+  (restart t)
+  (restart-iterations 250)
   )
 
 (defstruct state 
@@ -64,6 +67,10 @@
   final-pheromones 
   best-ant
   best-iteration
+  restart-ant
+  (restart-iteration 0)
+  (restarts 0)
+  (branching 0)
   )
 
 ;;;
@@ -105,21 +112,24 @@
 
 (defun run-single-aco-tsp (parameters default-colony output-p)
   "Top-level ACO to solve a TSP instance."
-  (let ((colony (initialize-colony default-colony parameters))
+  (let ((restart-p (parameters-restart parameters))
+	(colony (initialize-colony default-colony parameters))
 	(state (make-state))
-	(stats (make-statistics :best-ant (make-ant :tour-length 10000000000))))
-    ;(format t "ACO start ~%")
+	(stats (make-statistics :best-ant (make-ant :tour-length 10000000000)
+				:restart-ant (make-ant :tour-length 10000000000))))
     (loop until (terminate parameters state)
        do (progn
 	    (construct-solutions parameters colony)
 	    (update-statistics parameters colony stats state)
 	    (increment-iteration state)
 	    (update-trails parameters colony stats state)
-	    (update-convergence-factor parameters colony state)
+	    (update-convergence-factor parameters colony state stats)
 	    (when output-p
-	      (output-state state stats))))
-    ;(format t "ACO end ~%")
-    ;(setf (statistics-final-pheromones stats) (colony-pheromone colony))
+	      (output-state state stats colony))
+	    (when restart-p
+	      (restart-pheromone-trails parameters colony state stats))
+	    ))
+   ; (setf (statistics-final-pheromones stats) (colony-pheromone colony))
     stats))
 
 
@@ -186,6 +196,13 @@
 						:key #'(lambda (x) 
 							 (nth x distances-list))))))))
 
+(defun update-trail-limits (parameters colony new-cost)
+  "Update the values for the trail limits according to a new best tour found."
+  (setf (colony-trail-max colony)
+	(update-trail-max-value parameters new-cost))
+  (setf (colony-trail-min colony)
+	(update-trail-min-value parameters (colony-trail-max colony))))
+
 (defun update-trail-max-value (parameters cost)
   "Return initial pheromone value according to the Ant System."
   (case (parameters-ant-system parameters)
@@ -232,6 +249,26 @@
 			    :visited (make-array (+ n 2) :initial-element nil)))
        finally (return ants))))
 
+(defun restart-pheromone-trails (parameters colony state stats)
+  "Re-init the pheromone trails and keeps re-inits the restart-ant."
+  (when (and (< (state-stagnation state)
+		(parameters-stagnation-limit parameters))
+	     (> (- (state-iterations state)
+		   (statistics-restart-iteration stats))
+		(parameters-restart-iterations parameters)))
+    (let ((n (parameters-n parameters))
+	  (max (colony-trail-max colony))
+	  (pheromone (colony-pheromone colony)))
+      (format t "inside CF: ~a  PARAM: ~a MAX: ~a ~%" 
+	      (float (state-stagnation state))  (float (parameters-stagnation-limit parameters))
+	      (float max))
+      (loop for i from 1 to n
+	 do (loop for j from 1 to n 
+	       do (setf (aref pheromone i j) max)))
+      (setf (statistics-restart-ant stats) (make-ant :tour-length 10000000000))
+      (setf (statistics-restart-iteration stats) 0)
+      (incf (statistics-restarts stats)))))
+
 
 ;;;
 ;;; state simulation control
@@ -252,14 +289,19 @@
 ;;; output data
 ;;;
 
-(defun output-state (state stats)
+(defun output-state (state stats colony)
   "Prints simulation information."
-  (format t "~a | ~a | ~a | ~6,4F | ~6,4F ~%" 
+  (format t "~a | b: ~a | r: ~a ~a | c: ~a | avg: ~6,4F | cf: ~6,4F | trails: ~a ~a ~%"  
 	  (state-iterations state) 
 	  (float (ant-tour-length (statistics-best-ant stats)))
+	  (float (ant-tour-length (statistics-restart-ant stats)))
+	  (statistics-restarts stats)
 	  (float (state-current-best state)) 
 	  (float (state-pop-avg state))
-	  (float (state-stagnation state))))
+	  (float (state-stagnation state))
+	  (float (colony-trail-min colony))
+	  (float (colony-trail-max colony))
+	  ))
 
 
 ;;;
@@ -535,11 +577,11 @@
 	 (best-so-far-ant (statistics-best-ant stats))
 	 (w 6)
 	 (rank-ants (rank-w-ants (1- w) (colony-n-ants colony) ants)))
-    (evaporate n pheromone rho)
-    (loop for r from 1 below w 
-       do (deposit-pheromone (aref rank-ants (1- r)) n pheromone (- w r)))
-    (deposit-pheromone best-so-far-ant n pheromone w)
-    (update-choice-info n pheromone heuristic choice-info alpha beta)))
+     (evaporate n pheromone rho)
+     (loop for r from 1 below w 
+	do (deposit-pheromone (aref rank-ants (1- r)) n pheromone (- w r)))
+     (deposit-pheromone best-so-far-ant n pheromone w)
+     (update-choice-info n pheromone heuristic choice-info alpha beta)))
 
 (defun safe-copy-colony (n ants)
   (loop 
@@ -572,15 +614,29 @@
 	(beta (parameters-beta parameters))
 	(best-so-far-ant (statistics-best-ant stats)))
    (evaporate n pheromone rho)
-   (if (= 1 (mod (state-iterations state) (state-flag state)))
-       (deposit-pheromone best-so-far-ant n pheromone 1)
+   (if (change-update-ant parameters state)
        (let ((current-best-ant (find-best-ant (colony-n-ants colony) ants)))
-	 (deposit-pheromone current-best-ant n pheromone 1)))
+	 ;(format t "mmas deposit current best ~%")
+	 (deposit-pheromone current-best-ant n pheromone 1))
+       (progn 
+	 (format t "mmas deposit best so far ~%")
+	 (deposit-pheromone best-so-far-ant n pheromone 1)))
    (verify-pheromone-limits (parameters-n parameters)
 			    (colony-pheromone colony)
 			    (colony-trail-max colony)
 			    (colony-trail-min colony))
    (update-choice-info n pheromone heuristic choice-info alpha beta)))
+
+(defun change-update-ant (parameters state)
+  "Change the ant for update acording to number of iterations. Return t or nil."
+  (let* ((max (parameters-max-iterations parameters))
+	 (mid (/ max 2))
+	 (q3 (+ mid (/ max 4)))
+	 (i (state-iterations state)))
+    (or
+     (< i q3)
+     (> (mod i 50) 0))))
+
 
 (defun verify-pheromone-limits (n pheromone max min)
   "Checks for violations of pheromone limits and updates according to max and min values."
@@ -631,7 +687,11 @@
 	  (setf best (ant-tour-length ant))
 	  (when (< best (ant-tour-length (statistics-best-ant stats)))
 	    (setf (statistics-best-ant stats) (safe-copy-ant ant)
-		  (statistics-best-iteration stats) (state-iterations state))))
+		  (statistics-best-iteration stats) (state-iterations state))
+	    (update-trail-limits parameters colony best))
+	  (when (< best (ant-tour-length (statistics-restart-ant stats)))
+	    (setf (statistics-restart-ant stats) (safe-copy-ant ant)
+		  (statistics-restart-iteration stats) (state-iterations state))))
      sum (ant-tour-length ant) into total
      finally (progn
 	       (setf (state-pop-avg state) (/ total (colony-n-ants colony)))
@@ -643,10 +703,12 @@
 ;;; convergence measures
 ;;;
 
-(defun update-convergence-factor (parameters colony state)
+(defun update-convergence-factor (parameters colony state stats)
   "Calculates convergence of the colony and updates the state."
   (setf (state-stagnation state)
-	(funcall (parameters-convergence-function parameters) state colony parameters)))
+	(funcall (parameters-convergence-function parameters) state colony parameters))
+  (setf (statistics-branching stats)
+	(float (branching-factor state colony parameters))))
 
 (defun std-dev (avg-cost colony)
   "Standard deviation of the colony solution cost."
@@ -669,22 +731,39 @@
 	 (pheromone (colony-pheromone colony))
 	 (branches (make-array (1+ n) :initial-element 0)))
     (loop for i from 1 to n
-       do (let ((min (aref pheromone i 2))
-		(max (aref pheromone i 2))
+       do (let ((min (aref pheromone i 1))
+		(max (aref pheromone i 1))
 		(cutoff 0))	      
 	    (loop for j from 1 to n
 	       do (let ((value (aref pheromone i j)))
-		    (unless (= i j)
-		      (when (> value max) (setf max value))
-		      (when (< value min) (setf min value)))))
+		    (when (> value max) (setf max value))
+		    (when (< value min) (setf min value))))
 	    (setf cutoff (+ min (* l (- max min))))
 	    (loop for k from 1 to n
-	       when (> (aref pheromone i k) cutoff) 
+	       when (>= (aref pheromone i k) cutoff) 
 	       do (incf (aref branches i)))))
     (loop for i from 1 to n
        sum (aref branches i) into total
        finally (return (/ total n)))))
   
+(defun stagnation-factor (state colony parameters)
+  "Formula 3.19 of Dorigo+Stutzle book."
+  (declare (ignore state))
+  (let ((ant (find-best-ant (colony-n-ants colony) 
+			    (colony-ants colony)))
+	(n (parameters-n parameters))
+	(max (colony-trail-max colony))
+	(min (colony-trail-min colony))
+	(pheromone (colony-pheromone colony)))
+    (* (/ (loop for i from 1 to n
+	     sum (let* ((j (aref (ant-tour ant) i))
+			(l (aref (ant-tour ant) (1+ i)))
+			(value (aref pheromone j l)))
+		   (min (- max value) (- value min))))
+	  (expt n 2))
+       1000
+       
+       )))
 
 ;;;
 ;;; DEBUG ONLY !!!!
@@ -717,8 +796,8 @@
 (defun debug-setup-aco ()
   (let* ((parameters (make-parameters
 		      :n 9
-		      :n-ants 2
-		      :max-iterations 100
+		      :n-ants 9
+		      :max-iterations 10
 		      :distances (make-array '(10 10) 
 					     :initial-contents '((0 0 0 0 0 0 0 0 0 0)
 								 (0 0 1 5 1 5 5 5 5 5)
@@ -745,18 +824,19 @@
 
 (defun debug-aco (&key (runs 1) (output t))
   (multiple-value-bind (parameters colony)
-      (debug-setup-aco1)
+      (debug-setup-aco)
     (run-multiple-aco-tsp parameters colony runs output)))
 	   
 		     
 (defun debug-branch (pheromone &optional (n 4) (l 0.05))
   (let* ((branches (make-array (1+ n) :initial-element 0)))
     (loop for i from 1 to n
-       do (let ((min (aref pheromone i 1))
-		(max (aref pheromone i 1))
+       do (let ((min 100000000000)
+		(max 0)
 		(cutoff 0))
-	    (format t "~a before min: ~a max:~a ~%" i min max)
+	    ;(format t "~a before min: ~a max:~a ~%" i min max)
 	    (loop for j from 1 to n
+	       unless (= i j)
 	       do (let ((value (aref pheromone i j)))
 		    (when (> value max) (setf max value))
 		    (when (< value min) (setf min value))))
@@ -764,8 +844,10 @@
 	    (setf cutoff (+ min (* l (- max min))))
 	    (format t "~a cutoff: ~a ~%" i cutoff)
 	    (loop for k from 1 to n
-	       when (> (aref pheromone i k) cutoff) 
+	       when (>= (aref pheromone i k) cutoff) 
 	       do (incf (aref branches i)))))
     (loop for i from 1 to n
        sum (aref branches i) into total
        finally (return (/ total n)))))
+
+;; (debug-branch (make-array '(52 52) :initial-element 0.04) 51 0.05)
