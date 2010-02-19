@@ -1,3 +1,8 @@
+2010/02/19
++ MMAS with HCF is implemented but needs more validation. 
+  Does not give good results as it is
++ Refactoring should be done soon.
+
 2010/02/18
 + MMAS is working. However, still requires refinements (e.g., better update ant rule).
 + Ant algorithms must include an HCF version, especially MMAS.

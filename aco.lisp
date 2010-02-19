@@ -20,16 +20,16 @@
   (alpha 1.0)
   (beta 2.0)
   (rho 0.05)
-  (max-iterations 1000)
-  (ant-system :as)
+  (max-iterations 20000)
+  (ant-system :mmas)
   (avg-cost 426)
-  (pheromone-update #'as-pheromone-update)
+  (pheromone-update #'mmas-pheromone-update)
   (decision-rule #'as-decision)
   (eval-tour #'symmetric-tsp)
   (lambda 0.05)
   (convergence-function #'branching-factor)
   (stagnation-limit 3)
-  (restart nil)
+  (restart t)
   (restart-iterations 250)
   )
 
@@ -41,6 +41,8 @@
   (current-best 0)
   (pop-avg 0)
   (pop-std-dev 0)  
+  (bs-update nil)
+  (cf 0)
   )
 
 
@@ -121,15 +123,18 @@
        do (progn
 	    (construct-solutions parameters colony)
 	    (update-statistics parameters colony stats state)
-	    (increment-iteration state)
-	    (update-trails parameters colony stats state)
 	    (update-convergence-factor parameters colony state stats)
-	    (when output-p
-	      (output-state state stats colony))
 	    (when restart-p
-	      (restart-pheromone-trails parameters colony state stats))
-	    ))
-   ; (setf (statistics-final-pheromones stats) (colony-pheromone colony))
+	      (case (parameters-ant-system parameters)
+		(:mmas
+		 (restart-pheromone-trails-mmas parameters colony state stats))
+		(:mmas-hcf
+		 (restart-pheromone-trails-mmas-hcf parameters colony state stats))))
+	    (update-trails parameters colony stats state)
+	    (increment-iteration state)
+	    (when output-p
+	      (output-state state stats colony))))
+    ;(setf (statistics-final-pheromones stats) (colony-pheromone colony))
     stats))
 
 
@@ -159,11 +164,12 @@
 	 (parameters (make-parameters
 		      :n (cl-tsplib:problem-instance-dimension tsp-instance)
 		      :distances (cl-tsplib:problem-instance-distance-matrix tsp-instance)))
-	 (trail-max (update-trail-max-value parameters (parameters-avg-cost parameters))) 
+	 (trail-max (update-trail-max-value parameters (parameters-avg-cost parameters)))
+	 (initial-trail (initial-trail-value parameters trail-max))
 	 (colony (make-colony :n-ants (parameters-n-ants parameters)
 			      :ants (init-ants (parameters-n-ants parameters)
 					       (parameters-n parameters))
-			      :pheromone (init-pheromone (parameters-n parameters) trail-max)
+			      :pheromone (init-pheromone (parameters-n parameters) initial-trail)
 			      :trail-max trail-max
 			      :trail-min (update-trail-min-value parameters trail-max)
 			      :heuristic (init-heuristic (parameters-n parameters)
@@ -207,12 +213,21 @@
   "Return initial pheromone value according to the Ant System."
   (case (parameters-ant-system parameters)
     (:mmas (/ 1 (* (parameters-rho parameters) cost)))
+    (:mmas-hcf 1)
     (otherwise 1)))
 
 (defun update-trail-min-value (parameters trail-max)
   "Return initial lower bound pheromone value according to the Ant System."
   (case (parameters-ant-system parameters)
     (:mmas (/ trail-max (* 2 (parameters-n parameters))))
+    (:mmas-hcf 0)
+    (otherwise 1)))
+
+(defun initial-trail-value (parameters max)
+  "Return initial pheromone value according to the Ant System."
+  (case (parameters-ant-system parameters)
+    (:mmas max)
+    (:mmas-hcf 0.5)
     (otherwise 1)))
 
 (defun init-pheromone (n &optional (value 1))
@@ -249,7 +264,7 @@
 			    :visited (make-array (+ n 2) :initial-element nil)))
        finally (return ants))))
 
-(defun restart-pheromone-trails (parameters colony state stats)
+(defun restart-pheromone-trails-mmas (parameters colony state stats)
   "Re-init the pheromone trails and keeps re-inits the restart-ant."
   (when (and (< (state-stagnation state)
 		(parameters-stagnation-limit parameters))
@@ -259,15 +274,29 @@
     (let ((n (parameters-n parameters))
 	  (max (colony-trail-max colony))
 	  (pheromone (colony-pheromone colony)))
-     ; (format t "inside CF: ~a  PARAM: ~a MAX: ~a ~%" 
-     ;	      (float (state-stagnation state))  (float (parameters-stagnation-limit parameters))
-     ;	      (float max))
       (loop for i from 1 to n
 	 do (loop for j from 1 to n 
 	       do (setf (aref pheromone i j) max)))
       (setf (statistics-restart-ant stats) (make-ant :tour-length 10000000000))
       (setf (statistics-restart-iteration stats) 0)
       (incf (statistics-restarts stats)))))
+
+(defun restart-pheromone-trails-mmas-hcf (parameters colony state stats)
+  "Re-init the pheromone trails and keeps re-inits the restart-ant."
+  (if (and (state-bs-update state) 
+	   (> (state-cf state) 0.99))
+      (let ((n (parameters-n parameters))
+	    (pheromone (colony-pheromone colony)))
+	(loop for i from 1 to n
+	   do (loop for j from 1 to n 
+		 do (setf (aref pheromone i j) 0.5)))
+	(setf (statistics-restart-ant stats) (make-ant :tour-length 10000000000))
+	(setf (statistics-restart-iteration stats) 0)
+	(incf (statistics-restarts stats))
+	(setf (state-bs-update state) nil))
+      (when (> (state-cf state) 0.99)
+	(setf (state-bs-update state) t))))
+
 
 
 ;;;
@@ -658,6 +687,44 @@
      finally (return current)))
 
 
+
+;; MMAS-HCF
+
+(defun mmas-hcf-pheromone-update (parameters colony stats state)
+  "Mïn-Max Ant System with Hyper Cube framework pheromone update method."
+ (let* ((ants (colony-ants colony))
+	(n (parameters-n parameters))
+	(pheromone (colony-pheromone colony))
+	(rho (parameters-rho parameters))
+	(heuristic (colony-heuristic colony))
+	(choice-info (colony-choice-info colony))
+	(alpha (parameters-alpha parameters))
+	(beta (parameters-beta parameters))
+	(cf (state-cf state))
+	(restart-ant (statistics-restart-ant stats))
+	(best-so-far-ant (statistics-best-ant stats)))
+   (evaporate n pheromone rho)
+   (if (state-bs-update state)
+       (let ((current-ant (find-best-ant (colony-n-ants colony) ants)))
+	 (cond ((< cf 0.04)
+		(deposit-pheromone current-ant n pheromone 1))
+	       ((< cf 0.06)
+		(deposit-pheromone current-ant n pheromone 2/3)
+		(deposit-pheromone restart-ant n pheromone 1/3))
+	       ((< cf 0.08)
+		(deposit-pheromone current-ant n pheromone 1/3)
+		(deposit-pheromone restart-ant n pheromone 2/3))
+	       (t (deposit-pheromone restart-ant n pheromone 1))))
+       (deposit-pheromone best-so-far-ant n pheromone 1))
+   (verify-pheromone-limits (parameters-n parameters)
+			    (colony-pheromone colony)
+			    (colony-trail-max colony)
+			    (colony-trail-min colony))
+   (update-choice-info n pheromone heuristic choice-info alpha beta)))
+
+
+
+
 ;; HCF
 (defun hc-pheromone-update (ants n pheromone rho heuristic choice-info alpha beta)
   "Hyper-cube mode to update pheromones in AS."
@@ -688,7 +755,8 @@
 	  (when (< best (ant-tour-length (statistics-best-ant stats)))
 	    (setf (statistics-best-ant stats) (safe-copy-ant ant)
 		  (statistics-best-iteration stats) (state-iterations state))
-	    (update-trail-limits parameters colony best))
+	    (when (eql (parameters-ant-system parameters) :mmas)
+	      (update-trail-limits parameters colony best)))
 	  (when (< best (ant-tour-length (statistics-restart-ant stats)))
 	    (setf (statistics-restart-ant stats) (safe-copy-ant ant)
 		  (statistics-restart-iteration stats) (state-iterations state))))
@@ -708,7 +776,10 @@
   (setf (state-stagnation state)
 	(funcall (parameters-convergence-function parameters) state colony parameters))
   (setf (statistics-branching stats)
-	(float (branching-factor state colony parameters))))
+	(float (branching-factor state colony parameters)))
+  (when (eql :mmas-hcf (parameters-ant-system parameters))
+    (setf (state-cf state)
+	  (hcf-convergence-factor state colony parameters))))
 
 (defun std-dev (avg-cost colony)
   "Standard deviation of the colony solution cost."
@@ -746,24 +817,19 @@
        sum (aref branches i) into total
        finally (return (/ total n)))))
   
-(defun stagnation-factor (state colony parameters)
-  "Formula 3.19 of Dorigo+Stutzle book."
+(defun hcf-convergence-factor (state colony parameters)
+  "As in the C.Blum Beam-ACO paper for TSPTW."
   (declare (ignore state))
-  (let ((ant (find-best-ant (colony-n-ants colony) 
-			    (colony-ants colony)))
-	(n (parameters-n parameters))
-	(max (colony-trail-max colony))
+  (let ((max (colony-trail-max colony))
 	(min (colony-trail-min colony))
+	(n (parameters-n parameters))
 	(pheromone (colony-pheromone colony)))
-    (* (/ (loop for i from 1 to n
-	     sum (let* ((j (aref (ant-tour ant) i))
-			(l (aref (ant-tour ant) (1+ i)))
-			(value (aref pheromone j l)))
-		   (min (- max value) (- value min))))
-	  (expt n 2))
-       1000
-       
-       )))
+    (* 2 (- ( / (loop for i from 1 to n
+		   sum (loop for j from 1 to n 
+			  sum (let ((value (aref pheromone i j)))
+				(max (- max value) (- value min)))))
+		(* (* n n) (- max min))) 0.5))))
+
 
 ;;;
 ;;; DEBUG ONLY !!!!
@@ -861,6 +927,7 @@
   (let ((stats (aco-tsp eil51 :runs runs :output nil)))
     (loop with best = 10000000 
        for s in stats
+       collect (ant-tour-length (statistics-best-ant s)) into results
        when (< (ant-tour-length (statistics-best-ant s)) best) do (setf best (ant-tour-length (statistics-best-ant s)))
        sum (ant-tour-length (statistics-best-ant s)) into total
-       finally (return (list best (float (/ total runs)))))))
+       finally (return (list best (float (/ total runs)) results)))))
