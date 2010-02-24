@@ -10,4 +10,18 @@
   :licence "MIT"  
   :depends-on (cl-tsplib)
   :components ((:file "package")
-               (:file "aco" :depends-on ("package"))))
+               (:file "aco"         :depends-on ("package" 
+						 "utils"
+						 "init"
+						 "pheromone"
+						 "decision"
+						 "construct"
+						 "convergence"
+						 "debug"))
+	       (:file "utils"       :depends-on ("package"))
+	       (:file "init"        :depends-on ("package"))
+	       (:file "pheromone"   :depends-on ("package"))
+	       (:file "decision"    :depends-on ("package"))
+	       (:file "construct"   :depends-on ("package"))
+	       (:file "convergence" :depends-on ("package"))
+	       (:file "debug"       :depends-on ("package"))))

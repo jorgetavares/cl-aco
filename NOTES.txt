@@ -1,3 +1,6 @@
+2010/02/24
++ separation of code into several files and basic clean up done.
+
 2010/02/19
 + MMAS with HCF is implemented but needs more validation. 
   Does not give good results as it is
