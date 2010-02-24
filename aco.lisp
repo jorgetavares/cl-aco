@@ -20,7 +20,7 @@
   (alpha 1.0)
   (beta 2.0)
   (rho 0.05)
-  (max-iterations 20000)
+  (max-iterations 2000)
   (ant-system :mmas)
   (avg-cost 426)
   (pheromone-update #'mmas-pheromone-update)
@@ -97,10 +97,52 @@
 ;;; ACO run modes
 ;;;
 
-(defun aco-tsp (tsp-filename &key (runs 1) (output t))
+;;
+;; run by Ant System
+
+(defun ant-system (filename &key (runs 1) (max-iterations 1000) (output t))
+  "Ant System standard run."
+  (let ((parameters (make-parameters :max-iterations max-iterations
+				     :ant-system :as
+				     :pheromone-update #'as-pheromone-update
+				     :decision-rule #'as-decision
+				     :restart nil)))
+    (aco-tsp filename :runs runs :output output :params parameters)))
+
+(defun elite-ant-system (filename &key (runs 1) (max-iterations 1000) (output t))
+  "Elite Ant System standard run."
+  (let ((parameters (make-parameters :max-iterations max-iterations
+				     :ant-system :eas
+				     :pheromone-update #'eas-pheromone-update
+				     :decision-rule #'as-decision
+				     :restart nil)))
+    (aco-tsp filename :runs runs :output output :params parameters)))
+
+(defun rank-ant-system (filename &key (runs 1) (max-iterations 1000) (output t))
+  "Rank-based Ant System standard run."
+  (let ((parameters (make-parameters :max-iterations max-iterations
+				     :ant-system :ras
+				     :pheromone-update #'rank-pheromone-update
+				     :decision-rule #'as-decision
+				     :restart nil)))
+    (aco-tsp filename :runs runs :output output :params parameters)))
+
+(defun min-max-ant-system (filename &key (runs 1) (max-iterations 1000) (output t))
+  "Min-Max Ant System standard run."
+  (let ((parameters (make-parameters :max-iterations max-iterations
+				     :ant-system :mmas
+				     :pheromone-update #'mmas-pheromone-update
+				     :decision-rule #'as-decision
+				     :restart t)))
+    (aco-tsp filename :runs runs :output output :params parameters)))
+
+;;
+;; generic functions
+
+(defun aco-tsp (tsp-filename &key (runs 1) (output t) (params nil))
   "Run setup and a number of runs."
   (multiple-value-bind (parameters colony)
-      (setup-aco-tsp tsp-filename)
+      (setup-aco-tsp tsp-filename params)
     (run-multiple-aco-tsp parameters colony runs output)))
 
 (defun run (&optional (runs 1))
@@ -118,10 +160,10 @@
 ;;; ACO setup
 ;;;
 
-(defun setup-aco-tsp (tsp-filename)
+(defun setup-aco-tsp (tsp-filename params)
   "Setup the data for ACO."
   (multiple-value-bind (parameters colony)
-      (read-prepare-data tsp-filename)
+      (read-prepare-data tsp-filename params)
     (setf *tsp-parameters* parameters *tsp-colony* colony)
     (values parameters colony)))
 

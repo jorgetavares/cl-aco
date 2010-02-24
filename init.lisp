@@ -62,27 +62,30 @@
 ;;; init colony and problem parameters for TSP
 ;;; 
 
-(defun read-prepare-data (tsp-filename)
+(defun read-prepare-data (tsp-filename parameters)
   "Reads data from files (instances and parameters) and computes necessary pre-run stuff."
-  (let* ((tsp-instance (cl-tsplib:parse-problem-instance tsp-filename))
-	 (parameters (make-parameters
-		      :n (cl-tsplib:problem-instance-dimension tsp-instance)
-		      :distances (cl-tsplib:problem-instance-distance-matrix tsp-instance)))
-	 (trail-max (update-trail-max-value parameters (parameters-avg-cost parameters)))
-	 (initial-trail (initial-trail-value parameters trail-max))
-	 (colony (make-colony :n-ants (parameters-n-ants parameters)
-			      :ants (init-ants (parameters-n-ants parameters)
-					       (parameters-n parameters))
-			      :pheromone (init-pheromone (parameters-n parameters) initial-trail)
-			      :trail-max trail-max
-			      :trail-min (update-trail-min-value parameters trail-max)
-			      :heuristic (init-heuristic (parameters-n parameters)
-							 (parameters-distances parameters)))))
-    (setf (parameters-nearest-neighbors parameters)
-	  (list-nearest-neighbors (parameters-distances parameters)
-				  (parameters-n parameters)
-				  (parameters-n-neighbors parameters)))
-    (values parameters colony)))
+  (let ((tsp-instance (cl-tsplib:parse-problem-instance tsp-filename)))
+    (when (eql parameters nil)
+      (setf parameters (make-parameters)))
+    (setf (parameters-n parameters)
+	  (cl-tsplib:problem-instance-dimension tsp-instance))
+    (setf (parameters-distances parameters)
+	  (cl-tsplib:problem-instance-distance-matrix tsp-instance))
+    (let* ((trail-max (update-trail-max-value parameters (parameters-avg-cost parameters)))
+	   (initial-trail (initial-trail-value parameters trail-max))
+	   (colony (make-colony :n-ants (parameters-n-ants parameters)
+				:ants (init-ants (parameters-n-ants parameters)
+						 (parameters-n parameters))
+				:pheromone (init-pheromone (parameters-n parameters) initial-trail)
+				:trail-max trail-max
+				:trail-min (update-trail-min-value parameters trail-max)
+				:heuristic (init-heuristic (parameters-n parameters)
+							   (parameters-distances parameters)))))
+      (setf (parameters-nearest-neighbors parameters)
+	    (list-nearest-neighbors (parameters-distances parameters)
+				    (parameters-n parameters)
+				    (parameters-n-neighbors parameters)))
+      (values parameters colony))))
 
 ;;
 ;; auxiliary funtions to compute nearest neighbors 
