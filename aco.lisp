@@ -66,7 +66,6 @@
   )
 
 (defstruct statistics
-  final-pheromones 
   best-ant
   best-iteration
   restart-ant
@@ -100,60 +99,50 @@
 ;;
 ;; run by Ant System
 
-(defun ant-system (filename &key (runs 1) (max-iterations 1000) (output t))
+(defun ant-system (filename &key (runs 1) (max-iterations 1000) (output :screen))
   "Ant System standard run."
   (let ((parameters (make-parameters :max-iterations max-iterations
 				     :ant-system :as
 				     :pheromone-update #'as-pheromone-update
 				     :decision-rule #'as-decision
 				     :restart nil)))
-    (aco-tsp filename :runs runs :output output :params parameters)))
+    (aco-tsp filename :runs runs :output output :params parameters :id "as")))
 
-(defun elite-ant-system (filename &key (runs 1) (max-iterations 1000) (output t))
+(defun elite-ant-system (filename &key (runs 1) (max-iterations 1000) (output :screen))
   "Elite Ant System standard run."
   (let ((parameters (make-parameters :max-iterations max-iterations
 				     :ant-system :eas
 				     :pheromone-update #'eas-pheromone-update
 				     :decision-rule #'as-decision
 				     :restart nil)))
-    (aco-tsp filename :runs runs :output output :params parameters)))
+    (aco-tsp filename :runs runs :output output :params parameters :id "eas")))
 
-(defun rank-ant-system (filename &key (runs 1) (max-iterations 1000) (output t))
+(defun rank-ant-system (filename &key (runs 1) (max-iterations 1000) (output :screen))
   "Rank-based Ant System standard run."
   (let ((parameters (make-parameters :max-iterations max-iterations
 				     :ant-system :ras
 				     :pheromone-update #'rank-pheromone-update
 				     :decision-rule #'as-decision
 				     :restart nil)))
-    (aco-tsp filename :runs runs :output output :params parameters)))
+    (aco-tsp filename :runs runs :output output :params parameters :id "ras")))
 
-(defun min-max-ant-system (filename &key (runs 1) (max-iterations 1000) (output t))
+(defun min-max-ant-system (filename &key (runs 1) (max-iterations 1000) (output :screen))
   "Min-Max Ant System standard run."
   (let ((parameters (make-parameters :max-iterations max-iterations
 				     :ant-system :mmas
 				     :pheromone-update #'mmas-pheromone-update
 				     :decision-rule #'as-decision
 				     :restart t)))
-    (aco-tsp filename :runs runs :output output :params parameters)))
+    (aco-tsp filename :runs runs :output output :params parameters :id "mmas")))
 
 ;;
 ;; generic functions
 
-(defun aco-tsp (tsp-filename &key (runs 1) (output t) (params nil))
+(defun aco-tsp (tsp-filename &key (runs 1) (output :screen) (params nil) (id "aco"))
   "Run setup and a number of runs."
   (multiple-value-bind (parameters colony)
       (setup-aco-tsp tsp-filename params)
-    (run-multiple-aco-tsp parameters colony runs output)))
-
-(defun run (&optional (runs 1))
-  (let ((stats (aco-tsp eil51 :runs runs :output nil)))
-    (loop with best = 10000000 
-       for s in stats
-       collect (ant-tour-length (statistics-best-ant s)) into results
-       when (< (ant-tour-length (statistics-best-ant s)) best) 
-       do (setf best (ant-tour-length (statistics-best-ant s)))
-       sum (ant-tour-length (statistics-best-ant s)) into total
-       finally (return (list best (float (/ total runs)) results)))))
+    (run-multiple-aco-tsp parameters colony runs output id)))
 
 
 ;;;
@@ -167,17 +156,30 @@
     (setf *tsp-parameters* parameters *tsp-colony* colony)
     (values parameters colony)))
 
-(defun run-multiple-aco-tsp (parameters colony &optional (runs 1) (output t))
+(defun run-multiple-aco-tsp (parameters colony &optional (runs 1) (output :screen) (id "aco"))
   "Run multiple runs of ACO; data is loaded." 
-  (loop repeat runs
-     collect (run-single-aco-tsp parameters colony output)))
+  (loop for run from 1 to runs
+     collect (config-output-run-aco parameters colony output run id)))
 
+(defun config-output-run-aco (parameters colony output run id)
+  "Start an ACO run with or without saving data to files, and/or displaying on screen."
+  (if (member output '(:files :screen+files :full))
+      (with-open-file (run-stream (concatenate 'string id "-run" (format nil "~D" run) ".txt")
+				  :direction :output :if-exists :supersede)
+	(with-open-file (best-stream (concatenate 'string id "-best" (format nil "~D" run) ".txt")
+				     :direction :output :if-exists :supersede)
+	  (if (eql output :full)
+	      (with-open-file (pheromone-stream (concatenate 'string id "-pheromone" (format nil "~D" run) ".txt")
+						:direction :output :if-exists :supersede)
+		(run-single-aco-tsp parameters colony output (list run-stream best-stream pheromone-stream)))
+	      (run-single-aco-tsp parameters colony output (list run-stream best-stream)))))
+      (run-single-aco-tsp parameters colony output nil)))
 
 ;;;
 ;;; main ACO loop
 ;;;
 
-(defun run-single-aco-tsp (parameters default-colony output-p)
+(defun run-single-aco-tsp (parameters default-colony output streams)
   "Top-level ACO to solve a TSP instance."
   (let ((restart-p (parameters-restart parameters))
 	(colony (initialize-colony default-colony parameters))
@@ -187,7 +189,7 @@
     (loop until (terminate parameters state)
        do (progn
 	    (construct-solutions parameters colony)
-	    (update-statistics parameters colony stats state)
+	    (update-statistics parameters colony stats state output streams)
 	    (update-convergence-factor parameters colony state stats)
 	    (when restart-p
 	      (case (parameters-ant-system parameters)
@@ -197,9 +199,7 @@
 		 (restart-pheromone-trails-mmas-hcf parameters colony state stats))))
 	    (update-trails parameters colony stats state)
 	    (increment-iteration state)
-	    (when output-p
-	      (output-state state stats colony))))
-    ;(setf (statistics-final-pheromones stats) (colony-pheromone colony))
+	    (output-state output state stats colony streams)))
     stats))
 
 
@@ -217,7 +217,7 @@
   "Increments by step the number of iterations."
   (incf (state-iterations state) step))
 
-(defun update-statistics (parameters colony stats state)
+(defun update-statistics (parameters colony stats state output streams)
   "Update all the ACO stats."
   (loop with best = 10000000000 
      for ant across (colony-ants colony)
@@ -226,6 +226,10 @@
 	  (when (< best (ant-tour-length (statistics-best-ant stats)))
 	    (setf (statistics-best-ant stats) (safe-copy-ant ant)
 		  (statistics-best-iteration stats) (state-iterations state))
+	    (when (member output '(:full :files :screen+files))
+	      (format (second streams) "~a~%" (list 
+					       (state-iterations state) 
+					       (statistics-best-ant stats))))
 	    (when (eql (parameters-ant-system parameters) :mmas)
 	      (update-trail-limits parameters colony best)))
 	  (when (< best (ant-tour-length (statistics-restart-ant stats)))
@@ -242,16 +246,23 @@
 ;;; output data
 ;;;
 
-(defun output-state (state stats colony)
+(defun output-state (output state stats colony streams)
   "Prints simulation information."
-  (format t "~a | b: ~a | r: ~a ~a | c: ~a | avg: ~6,4F | cf: ~6,4F | trails: ~a ~a ~%"  
-	  (state-iterations state) 
-	  (float (ant-tour-length (statistics-best-ant stats)))
-	  (float (ant-tour-length (statistics-restart-ant stats)))
-	  (statistics-restarts stats)
-	  (float (state-current-best state)) 
-	  (float (state-pop-avg state))
-	  (float (state-stagnation state))
-	  (float (colony-trail-min colony))
-	  (float (colony-trail-max colony))
-	  ))
+  (unless (eql output :none)
+    (let ((iteration (state-iterations state)) 
+	  (best (float (ant-tour-length (statistics-best-ant stats))))
+	  (restart-best (float (ant-tour-length (statistics-restart-ant stats))))
+	  (restarts  (statistics-restarts stats))
+	  (current-best (float (state-current-best state))) 
+	  (avg (float (state-pop-avg state)))
+	  (cf (float (state-stagnation state)))
+	  (min (float (colony-trail-min colony)))
+	  (max (float (colony-trail-max colony))))
+      (when (member output '(:screen :screen+files :full))
+	(format t "~a | b: ~a | r: ~a ~a | c: ~a | avg: ~6,4F | cf: ~6,4F | trails: ~a ~a ~%"  
+		iteration best restart-best restarts current-best avg cf min max))
+      (when (member output '(:files :screen+files :full))
+	(format (first streams)  "~a~%" (list iteration best restart-best restarts current-best avg cf min max)))
+      (when (member output '(:full))
+	(format (third streams) "~a~%" (list (colony-pheromone colony))))
+      )))
