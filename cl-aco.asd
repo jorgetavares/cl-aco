@@ -24,4 +24,5 @@
 	       (:file "decision"    :depends-on ("package"))
 	       (:file "construct"   :depends-on ("package"))
 	       (:file "convergence" :depends-on ("package"))
-	       (:file "debug"       :depends-on ("package"))))
+	       (:file "debug"       :depends-on ("package"))
+	       (:file "evolve"      :depends-on ("package"))))

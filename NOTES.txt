@@ -1,5 +1,9 @@
+2010/02/26
++ Implement a calling function for the GP system that avoids loading the TSP instance on every evaluation.
+
 2010/02/24
 + separation of code into several files and basic clean up done.
++ Output to files done. Parsers for output files needed.
 
 2010/02/19
 + MMAS with HCF is implemented but needs more validation. 
