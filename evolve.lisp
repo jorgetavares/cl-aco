@@ -28,13 +28,13 @@
 ;;; main call for an ACO with a gp tree
 ;;;
 
-(defun gp-ant-system (gp-tree filename &key (runs 1) (max-iterations 1000) (output :screen))
+(defun gp-ant-system (gp-tree filename &key (runs 1) (max-iterations 100) (output :screen) (restart nil))
   "Ant System standard run."
   (let ((parameters (make-parameters :max-iterations max-iterations
-				     :ant-system :as
+				     :ant-system :gpas
 				     :pheromone-update (gp-pheromone-update gp-tree)
 				     :decision-rule #'as-decision
-				     :restart nil)))
+				     :restart restart)))
     (aco-tsp filename :runs runs :output output :params parameters :id "gpas")))
 
 
@@ -198,6 +198,12 @@
 (defun aco-constant-real ()
   (random 1.0))
 
+(defun aco-t ()
+  t)
+
+(defun aco-nil ()
+  nil)
+
 ;; random numbers
 (defun aco-random-real ()
   (random 1.0))
@@ -210,7 +216,6 @@
 
 (defun aco-random-n ()
   (random *n*))
-
 
 ;; aco state information
 (defun aco-rho ()
@@ -235,7 +240,6 @@
   (+ (aco-q1) (aco-q2)))
 
 ;; ants 
-
 (defun aco-best-ant ()
   *best-ant*)
 
@@ -256,7 +260,3 @@
 
 (defun aco-verify-limits ()
   (verify-pheromone-limits *n* *pheromone* *trail-max* *trail-min*))
-
-
-
-

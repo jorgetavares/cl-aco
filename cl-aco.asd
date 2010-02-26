@@ -25,4 +25,5 @@
 	       (:file "construct"   :depends-on ("package"))
 	       (:file "convergence" :depends-on ("package"))
 	       (:file "debug"       :depends-on ("package"))
-	       (:file "evolve"      :depends-on ("package"))))
+	       (:file "evolve"      :depends-on ("package"))
+	       (:file "profile"     :depends-on ("package"))))
