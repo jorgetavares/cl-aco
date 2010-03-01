@@ -81,9 +81,6 @@
 
 (defparameter eil51 "/Users/jast/workspace/cl-tsplib/instances/eil51.tsp")
 
-(defparameter *tsp-parameters* nil)
-(defparameter *tsp-colony* nil)
-
 (defun symmetric-tsp (route n distances)
   "Computes the length of a symmetric tsp route."
   (loop 
@@ -106,7 +103,7 @@
 				     :pheromone-update #'as-pheromone-update
 				     :decision-rule #'as-decision
 				     :restart nil)))
-    (aco-tsp filename :runs runs :output output :params parameters :id "as")))
+    (run-aco :filename filename :parameters parameters :runs runs :output output :id "as")))
 
 (defun elite-ant-system (filename &key (runs 1) (max-iterations 1000) (output :screen))
   "Elite Ant System standard run."
@@ -115,7 +112,7 @@
 				     :pheromone-update #'eas-pheromone-update
 				     :decision-rule #'as-decision
 				     :restart nil)))
-    (aco-tsp filename :runs runs :output output :params parameters :id "eas")))
+    (run-aco :filename filename :parameters parameters :runs runs :output output :id "eas")))
 
 (defun rank-ant-system (filename &key (runs 1) (max-iterations 1000) (output :screen))
   "Rank-based Ant System standard run."
@@ -124,7 +121,7 @@
 				     :pheromone-update #'rank-pheromone-update
 				     :decision-rule #'as-decision
 				     :restart nil)))
-    (aco-tsp filename :runs runs :output output :params parameters :id "ras")))
+    (run-aco :filename filename :parameters parameters :runs runs :output output :id "ras")))
 
 (defun min-max-ant-system (filename &key (runs 1) (max-iterations 1000) (output :screen))
   "Min-Max Ant System standard run."
@@ -133,35 +130,18 @@
 				     :pheromone-update #'mmas-pheromone-update
 				     :decision-rule #'as-decision
 				     :restart t)))
-    (aco-tsp filename :runs runs :output output :params parameters :id "mmas")))
+    (run-aco :filename filename :parameters parameters :runs runs :output output :id "mmas")))
 
 ;;
-;; generic functions
+;; generic run functions
 
-(defun aco-tsp (tsp-filename &key (runs 1) (output :screen) (params nil) (id "aco"))
+(defun run-aco (&key (filename nil) (parameters nil) (runs 1) (output :screen) (id "aco"))
   "Run setup and a number of runs."
-  (multiple-value-bind (parameters colony)
-      (setup-aco-tsp tsp-filename params)
-    (run-multiple-aco-tsp parameters colony runs output id)))
+  (let ((params (if filename (read-problem-data filename parameters) parameters)))
+    (loop for run from 1 to runs 
+       collect (config-output-run-aco params output run id))))
 
-
-;;;
-;;; ACO setup
-;;;
-
-(defun setup-aco-tsp (tsp-filename params)
-  "Setup the data for ACO."
-  (multiple-value-bind (parameters colony)
-      (read-prepare-data tsp-filename params)
-    (setf *tsp-parameters* parameters *tsp-colony* colony)
-    (values parameters colony)))
-
-(defun run-multiple-aco-tsp (parameters colony &optional (runs 1) (output :screen) (id "aco"))
-  "Run multiple runs of ACO; data is loaded." 
-  (loop for run from 1 to runs
-     collect (config-output-run-aco parameters colony output run id)))
-
-(defun config-output-run-aco (parameters colony output run id)
+(defun config-output-run-aco (parameters output run id)
   "Start an ACO run with or without saving data to files, and/or displaying on screen."
   (if (member output '(:files :screen+files :full))
       (with-open-file (run-stream (concatenate 'string id "-run" (format nil "~D" run) ".txt")
@@ -171,18 +151,18 @@
 	  (if (eql output :full)
 	      (with-open-file (pheromone-stream (concatenate 'string id "-pheromone" (format nil "~D" run) ".txt")
 						:direction :output :if-exists :supersede)
-		(run-single-aco-tsp parameters colony output (list run-stream best-stream pheromone-stream)))
-	      (run-single-aco-tsp parameters colony output (list run-stream best-stream)))))
-      (run-single-aco-tsp parameters colony output nil)))
+		(run-single-aco parameters output (list run-stream best-stream pheromone-stream)))
+	      (run-single-aco parameters output (list run-stream best-stream)))))
+      (run-single-aco parameters output nil)))
 
 ;;;
 ;;; main ACO loop
 ;;;
 
-(defun run-single-aco-tsp (parameters default-colony output streams)
-  "Top-level ACO to solve a TSP instance."
+(defun run-single-aco (parameters output streams)
+  "Top-level ACO to solve a problem instance."
   (let ((restart-p (parameters-restart parameters))
-	(colony (initialize-colony default-colony parameters))
+	(colony (initialize-colony parameters))
 	(state (make-state))
 	(stats (make-statistics :best-ant (make-ant :tour-length 10000000000)
 				:restart-ant (make-ant :tour-length 10000000000))))

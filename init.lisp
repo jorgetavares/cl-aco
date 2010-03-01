@@ -4,21 +4,25 @@
 ;;; initialize ACO
 ;;;
 
-(defun initialize-colony (colony parameters)
-  "Initializes all the data for a ACO run."
-  (setf (colony-ants colony)
-	(init-ants (parameters-n-ants parameters)
-		   (parameters-n parameters)))
-  (setf (colony-pheromone colony)
-	(init-pheromone (parameters-n parameters) 
-			(colony-trail-max colony)))
-  (setf (colony-choice-info colony)
-	(init-choice-info (parameters-n parameters)
-			  (colony-pheromone colony)
-			  (colony-heuristic colony)
-			  (parameters-alpha parameters)
-			  (parameters-beta parameters)))
-  colony)
+(defun initialize-colony (parameters)
+  "Prepare colony data (requires parameters already with problem data."
+ (let* ((trail-max (update-trail-max-value parameters (parameters-avg-cost parameters)))
+	(initial-trail (initial-trail-value parameters trail-max))
+	(colony (make-colony :n-ants (parameters-n-ants parameters)
+			     :ants (init-ants (parameters-n-ants parameters)
+					      (parameters-n parameters))
+			     :pheromone (init-pheromone (parameters-n parameters) initial-trail)
+			     :trail-max trail-max
+			     :trail-min (update-trail-min-value parameters trail-max)
+			     :heuristic (init-heuristic (parameters-n parameters)
+							(parameters-distances parameters)))))
+   (setf (colony-choice-info colony)
+	 (init-choice-info (parameters-n parameters)
+			   (colony-pheromone colony)
+			   (colony-heuristic colony)
+			   (parameters-alpha parameters)
+			   (parameters-beta parameters)))
+   colony))
 
 ;;
 ;; generic init functions for the heuristic and
@@ -59,37 +63,28 @@
 
 
 ;;;
-;;; init colony and problem parameters for TSP
+;;; init problem parameters for TSP
 ;;; 
 
-(defun read-prepare-data (tsp-filename parameters)
-  "Reads data from files (instances and parameters) and computes necessary pre-run stuff."
-  (let ((tsp-instance (cl-tsplib:parse-problem-instance tsp-filename)))
+(defun read-problem-data (filename parameters)
+  "read from file the problem data (still loacked to TSP.)"
+  (let ((tsp-instance (cl-tsplib:parse-problem-instance filename)))
     (when (eql parameters nil)
       (setf parameters (make-parameters)))
     (setf (parameters-n parameters)
 	  (cl-tsplib:problem-instance-dimension tsp-instance))
     (setf (parameters-distances parameters)
 	  (cl-tsplib:problem-instance-distance-matrix tsp-instance))
-    (let* ((trail-max (update-trail-max-value parameters (parameters-avg-cost parameters)))
-	   (initial-trail (initial-trail-value parameters trail-max))
-	   (colony (make-colony :n-ants (parameters-n-ants parameters)
-				:ants (init-ants (parameters-n-ants parameters)
-						 (parameters-n parameters))
-				:pheromone (init-pheromone (parameters-n parameters) initial-trail)
-				:trail-max trail-max
-				:trail-min (update-trail-min-value parameters trail-max)
-				:heuristic (init-heuristic (parameters-n parameters)
-							   (parameters-distances parameters)))))
-      (setf (parameters-nearest-neighbors parameters)
-	    (list-nearest-neighbors (parameters-distances parameters)
-				    (parameters-n parameters)
-				    (parameters-n-neighbors parameters)))
-      (values parameters colony))))
+    (setf (parameters-nearest-neighbors parameters)
+	  (list-nearest-neighbors (parameters-distances parameters)
+				  (parameters-n parameters)
+				  (parameters-n-neighbors parameters)))
+    parameters))
 
-;;
-;; auxiliary funtions to compute nearest neighbors 
-;; of the TSP instance (should be moved to cl-tsplib)
+
+;;;
+;;; auxiliary funtions to compute nearest neighbors 
+;;; of the TSP instance (should be moved to cl-tsplib)
 
 (defun list-nearest-neighbors (distances n &optional (n-neighbors (- n 1)))
   "Returns the list of the nearest enighbors for a set of cities."

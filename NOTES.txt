@@ -1,3 +1,6 @@
+2010/03/01
++ Refactored the way ACO runs are started. GP system avoids multiple problem data readings.
+
 2010/02/26
 + Implement a calling function for the GP system that avoids loading the TSP instance on every evaluation.
 

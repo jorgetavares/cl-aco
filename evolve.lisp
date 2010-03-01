@@ -28,14 +28,22 @@
 ;;; main call for an ACO with a gp tree
 ;;;
 
-(defun gp-ant-system (gp-tree filename &key (runs 1) (max-iterations 100) (output :screen) (restart nil))
-  "Ant System standard run."
+(defun gp-ant-system (gp-tree filename &key (runs 1) (max-iterations 100) 
+		      (output :screen) (restart nil))
+  "Ant System standard run using a pre-defined tree."
   (let ((parameters (make-parameters :max-iterations max-iterations
 				     :ant-system :gpas
 				     :pheromone-update (gp-pheromone-update gp-tree)
 				     :decision-rule #'as-decision
 				     :restart restart)))
-    (aco-tsp filename :runs runs :output output :params parameters :id "gpas")))
+    (run-aco :filename filename :parameters parameters :runs runs :output output :id "gpas")))
+
+
+(defun evaluate-aco-gp-tree (gp-tree parameters &key (runs 1) (output :none) (id 0))
+  "Evaluates a GP tree. Parameters must be created outside to avoid unnecessary computations."
+  (setf (parameters-pheromone-update parameters)
+	(gp-pheromone-update gp-tree))
+  (run-aco :parameters parameters :runs runs :output output :id (write-to-string id)))
 
 
 ;;;
@@ -66,11 +74,6 @@
 	      *trail-min* (colony-trail-min colony))
 	(eval gp-tree)
 	(update-choice-info *n* *pheromone* heuristic choice-info alpha beta))))
-
-(defun evaluate-aco-gp-tree ()
-  ""
-  
-  )
 
 
 ;;;
