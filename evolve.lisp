@@ -99,9 +99,7 @@
 (defparameter *ras-gp-tree*
   '(aco-prog3
     (aco-evaporate (aco-rho))
-    (aco-deposit (aco-rank-ants 6) 1)   ; the weight should differ according to the 
-					; ranking ant; this should be addressed by
-					; making aco-deposit aware of this 
+    (aco-deposit (aco-rank-ants 6) 6) 
     (aco-deposit (aco-best-ant) 6))
   "Rank-based Ant System using the GP function and terminal set.")
 
@@ -169,7 +167,7 @@
 ;; aco functions
 (defun aco-rank-ants (w)
   (when (numberp w)
-    (rank-w-ants (1- w) *n-ants* *ants*) t))
+    (rank-w-ants (1- w) *n-ants* *ants*)))
 
 (defun aco-evaporate (rho)
   (when (numberp rho)
@@ -177,7 +175,11 @@
 
 (defun aco-deposit (a w)
   (let ((weight (if (numberp w) w 0)))
-    (cond ((arrayp a)
+    (cond ((and (arrayp a)
+		(< (length a) w))
+	   (loop for r from 1 below w
+	      do (deposit-pheromone (aref a (1- r)) *n* *pheromone* (- w r))) t)
+	  ((arrayp a)
 	   (loop for ant across a
 	      do (deposit-pheromone ant *n* *pheromone* weight)) t)
 	  ((ant-p a) 
