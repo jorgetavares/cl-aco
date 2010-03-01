@@ -116,7 +116,43 @@
 
 
 ;;;
-;;; function set
+;;; function and terminal sets lists to be used for evolution
+;;;
+
+;; basic sets (should allow only AS and EAS)
+(defparameter *fset-basic* '(aco-prog2 aco-prog3 aco-evaporate aco-deposit))
+(defparameter *tset-basic* '(aco-rho aco-ants aco-best-ant aco-constant-int))
+
+;; basic set + ras
+(defparameter *fset-basic+ras* (append *fset-basic* '(aco-rank-ants)))
+
+;; extensions
+(defparameter *fset-conditionals* '(aco-if))
+(defparameter *fset-logic* '(aco-and aco-or aco-not))
+(defparameter *fset-comparators* '(aco-< aco-<= aco-> aco->= aco-= aco-/=))
+(defparameter *fset-math* '(aco-mod))
+
+(defparameter *tset-truth* '(aco-t aco-nil))
+(defparameter *tset-state* '(aco-iteration aco-max-iterations aco-cf aco-q1 aco-q2 aco-q3))
+(defparameter *tset-ants* '(aco-current-ant aco-random-ant))
+(defparameter *tset-restart* '(aco-restat-ant aco-restarts))
+(defparameter *tset-randoms* '(aco-random-real aco-random-n))
+(defparameter *tset-constants* '(aco-constant-real))
+
+;; extended sets
+(defparameter *fset-extended-mmas* (append '(aco-verify-limits) 
+					   *fset-conditionals* 
+					   *fset-logic*
+					   *fset-comparators*
+					   *fset-math*))
+(defparameter *tset-extended-mmas* (append *tset-state*
+					   *tset-ants*
+					   *tset-restart*
+					   *tset-randoms*
+					   *tset-constants*))
+
+;;;
+;;; function set definitions
 ;;;
 
 ;; conditionals
@@ -193,7 +229,7 @@
 
 
 ;;;
-;;; terminal set
+;;; terminal set definitions
 ;;;
 
 ;; constants (only used in a tree generation by keeping their values)
