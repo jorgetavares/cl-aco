@@ -137,7 +137,7 @@
 (defparameter *tset-ants* '(aco-current-ant aco-random-ant))
 (defparameter *tset-restart* '(aco-restat-ant aco-restarts))
 (defparameter *tset-randoms* '(aco-random-real aco-random-n))
-(defparameter *tset-constants* '(aco-constant-real))
+(defparameter *tset-constants* '(aco-constant-int aco-constant-real))
 
 ;; extended sets
 (defparameter *fset-extended-mmas* (append '(aco-verify-limits) 
@@ -195,10 +195,10 @@
 
 ;; sequencials
 (defun aco-prog2 (x y)
-  (progn x y) t)
+  (progn x y))
 
 (defun aco-prog3 (x y z)
-  (progn x y z) t)
+  (progn x y z))
       
 ;; aco functions
 (defun aco-rank-ants (w)
@@ -233,7 +233,11 @@
 ;;;
 
 ;; constants (only used in a tree generation by keeping their values)
-(defun aco-constant-int (&optional (max 100))
+
+(defun aco-small-int (&optional (max 10))
+  (aco-constant-int max))
+
+(defun aco-constant-int (&optional (max *n-ants*))
   (random max))
 
 (defun aco-constant-real ()
@@ -301,3 +305,57 @@
 
 (defun aco-verify-limits ()
   (verify-pheromone-limits *n* *pheromone* *trail-max* *trail-min*))
+
+
+;;;
+;;; tree generators 
+;;;
+
+
+(defun ramped-half-and-half (limit fset tset)
+  "A gp tree is created with half of probability for each method."
+  (if (< (random 1.0) 0.5)
+      (full-method-tree 0 limit fset tset)
+      (grow-method-tree 0 limit fset tset)))
+
+(defun full-method-tree (size limit fset tset)
+ "Random tree according to the Full method."
+ (if (= size limit)
+     (process-terminal (nth (random (length tset)) tset))
+     (let ((f (nth (random (length fset)) fset)))
+       (cons f
+	     (case f
+	       (aco-evaporate
+		(list (full-method-tree (1+ size) limit fset tset)))
+	       ((aco-prog2 aco-deposit) 
+		(list (full-method-tree (1+ size) limit fset tset)
+		      (full-method-tree (1+ size) limit fset tset)))
+	       (aco-prog3
+		(list (full-method-tree (1+ size) limit fset tset)
+		      (full-method-tree (1+ size) limit fset tset)
+		      (full-method-tree (1+ size) limit fset tset))))))))
+
+(defun grow-method-tree (size limit fset tset)
+  "Random tree according to the Grow method."
+  (if (= size limit)
+      (process-terminal (nth (random (length tset)) tset))
+      (let* ((set (append fset tset))
+	     (f (nth (random (length set)) set)))
+	(case f
+	  (aco-evaporate
+	   (cons f (list (grow-method-tree (1+ size) limit fset tset))))
+	  ((aco-prog2 aco-deposit) 
+	   (cons f (list (grow-method-tree (1+ size) limit fset tset)
+			 (grow-method-tree (1+ size) limit fset tset))))
+	  (aco-prog3
+	   (cons f (list (grow-method-tree (1+ size) limit fset tset)
+			 (grow-method-tree (1+ size) limit fset tset)
+			 (grow-method-tree (1+ size) limit fset tset))))
+	  (otherwise (process-terminal f))))))
+
+(defun process-terminal (terminal)
+  (case terminal
+    (aco-small-int (aco-small-int))
+    (aco-constant-int (aco-constant-int))
+    (aco-constant-real (aco-constant-real))
+    (otherwise (list terminal))))
