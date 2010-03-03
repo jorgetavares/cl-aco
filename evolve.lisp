@@ -456,6 +456,27 @@
 
 
 ;;;
+;;; elitism
+;;;
+
+(defun find-best (population size comparator)
+  "Return the indicies of the best or worst individuals in the population, according to the comparator."
+  (loop 
+     with best = 0
+     for i from 1 below size 
+     when (funcall comparator 
+		   (individual-fitness (aref population i)) 
+		   (individual-fitness (aref population best)))
+     do (setf best i)
+     finally (return best)))
+
+(defun elitism (population size best-individual)
+  "Replace a random individual with the best from the previous generation."
+  (let ((worst-position (find-best population size #'>)))
+    (setf (aref population worst-position) (copy-individual best-individual)) population))
+
+
+;;;
 ;;; genetic operators
 ;;;
 
