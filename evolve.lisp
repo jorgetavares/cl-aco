@@ -39,11 +39,11 @@
     (run-aco :filename filename :parameters parameters :runs runs :output output :id "gpas")))
 
 
-(defun evaluate-aco-gp-tree (gp-tree parameters &key (runs 1) (output :none) (id 0))
+(defun evaluate-aco-gp-tree (gp-tree parameters &key (runs 1) (output :none) (id "0"))
   "Evaluates a GP tree. Parameters must be created outside to avoid unnecessary computations."
   (setf (parameters-pheromone-update parameters)
 	(gp-pheromone-update gp-tree))
-  (run-aco :parameters parameters :runs runs :output output :id (write-to-string id)))
+  (run-aco :parameters parameters :runs runs :output output :id id))
 
 
 ;;;
@@ -359,3 +359,80 @@
     (aco-constant-int (aco-constant-int))
     (aco-constant-real (aco-constant-real))
     (otherwise (list terminal))))
+
+
+;;;;
+;;;; GP engine (later to be replace by cl-evo)
+;;;;
+
+;;;
+;;; representation and population initialization
+;;;
+
+(defstruct individual
+  (tree nil)
+  (fitness 0))
+
+(defun make-random-individual (tree-limit fset tset)
+  "Return a random generate tree without being evaluated."
+  (make-individual :tree (ramped-half-and-half tree-limit fset tset)))
+
+(defun make-population (size tree-limit fset tset)
+  "Return an array filled with random gp individuals."
+  (make-array size 
+	      :initial-contents (loop repeat size 
+				   collect (make-random-individual tree-limit fset tset))))
+
+;;;
+;;; evaluations
+;;;
+
+(defun eval-population (population size fitness-function generation)
+  "Set the fitness to every element in the population."
+  (loop 
+     for individual across population
+     for id from 1 to size
+     do (setf (individual-fitness individual) 
+	      (funcall fitness-function individual id generation))))
+
+(defstruct problem-config 
+  (filename eil51)
+  (runs 1)
+  (output :none)
+  (max-iterations 100)
+  (ant-system :gpas)
+  (restart nil))
+
+(defun make-fitness-function (problem)
+  "Return a fitness evaluation with the problem data required for it."
+  (let ((runs (problem-config-runs problem))
+	(output (problem-config-output problem))
+	(parameters (read-problem-data (problem-config-filename problem)
+				       (make-parameters :max-iterations (problem-config-max-iterations problem)
+							:ant-system (problem-config-max-iterations problem)
+							:restart (problem-config-restart problem)))))
+    #'(lambda (individual id generation)
+	(let ((results (evaluate-aco-gp-tree (individual-tree individual)
+					     parameters 
+					     :runs runs 
+					     :output output
+					     :id (if (eql output :none) 
+						     (concatenate 'string 
+								  (write-to-string generation) 
+								  (write-to-string id)) "aco"))))
+	  (if (= runs 1)
+	      (ant-tour-length (statistics-best-ant (first results)))
+	      (loop 
+		 for result in results
+		 sum (ant-tour-length (statistics-best-ant result)) into total-best
+		 finally (return (/ total-best runs))))))))
+
+;;;
+;;; selection
+;;;
+
+
+
+
+
+
