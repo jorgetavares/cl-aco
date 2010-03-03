@@ -448,7 +448,7 @@
 
 (defun selection (population size tournament-size)
   "Return a new population."
-  (loop with = new-population (make-array size)
+  (loop with new-population = (make-array size)
      for i from 0 below size
      do (setf (aref new-population i)
 	      (tournament tournament-size population size))
@@ -486,8 +486,7 @@
      do (when (< (random 1.0) rate)
 	  (multiple-value-bind (o1 o2)
 	      (tree-crossover max-depth (aref population position) (aref population (1+ position)))
-	    (setf (aref population position) o1 (aref population (1+ position)) o2))) 
-     finally (return population)))
+	    (setf (aref population position) o1 (aref population (1+ position)) o2)))))
 
 (defun tree-crossover (size p1 p2)
   (multiple-value-bind (o1 o2)
@@ -549,7 +548,36 @@
 	      (apply #'max (mapcar #'tree-depth (rest tree))) 0)) 1))
 
 
+;;;
+;;; gp engine
+;;;
 
+(defun run-single-gp (total-generations pop-size initial-depth max-depth fset tset fitness t-size cx-rate)
+  "Main gp loop."
+  (let ((population (make-population pop-size initial-depth fset tset))
+	(best nil))
+    (eval-population population pop-size fitness 1)
+    (setf best (copy-individual (aref population (find-best population pop-size #'<))))
+    (output-generation 1 population pop-size best)
+    (loop for generation from 2 to total-generations
+       do (let ((new-population (selection population pop-size t-size)))
+	    (apply-crossover new-population pop-size max-depth cx-rate)
+	    (eval-population new-population pop-size fitness generation)
+	    (elitism new-population pop-size best)
+	    (setf population new-population)
+	    (setf best (copy-individual (aref population (find-best population pop-size #'<))))
+	    (output-generation generation population pop-size best))
+       finally (return best))))
+
+(defun output-generation (generation population pop-size best)
+  "Shows the state of a generation"
+  (format t "~a ~a ~a ~%" generation (individual-fitness best) (average population pop-size)))
+
+(defun average (population pop-size)
+  "Average of population's fitness."
+  (loop for individual across population
+     sum (individual-fitness individual) into total
+     finally (return (/ total pop-size))))
 
 
 
