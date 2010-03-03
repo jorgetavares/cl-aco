@@ -552,13 +552,71 @@
 ;;; gp engine
 ;;;
 
-(defun run-single-gp (total-generations pop-size initial-depth max-depth fset tset fitness t-size cx-rate)
+(defstruct gp-params
+  (total-generations 100)
+  (pop-size 100)
+  (initial-depth 2)
+  (max-depth 5)
+  (fset nil)
+  (tset nil)
+  (fitness nil)
+  (t-size 3)
+  (cx-rate 0.9)
+  )
+
+(defun run-aco-gp (fset tset &key (gp-runs 1) (gp-output :screen) 
+		   (generations 100) (pop-size 100) (initial-depth 2) (max-depth 5)		  
+		   (filename eil51) (aco-runs 1) (aco-output :none) 
+		   (max-iterations 100) (ant-system :gpas) (restart nil))
+  "Start GP."
+  (let* ((problem (make-problem-config :filename filename
+				       :runs aco-runs
+				       :output aco-output
+				       :max-iterations max-iterations
+				       :ant-system ant-system
+				       :restart restart)) 
+	 (fitness (make-fitness-function problem))
+	 (gp-params (make-gp-params :total-generations generations
+				    :pop-size pop-size
+				    :initial-depth initial-depth
+				    :max-depth max-depth
+				    :fset fset
+				    :tset tset
+				    :fitness fitness)))
+    (gp-multiple-runs gp-params :runs gp-runs :output gp-output :id "gp-aco")))
+
+(defun gp-multiple-runs (parameters &key (runs 1) (output :screen) (id "gp"))
+  "Run the gp engine for several runs"
+  (loop for run from 1 to runs
+     collect (config-gp-output parameters output run id)))
+
+(defun config-gp-output (parameters output run id)
+  "Config a GP run output (:none, :screen, :files, or both)."
+  (if (member output '(:files :screen+files))
+      (with-open-file (run-stream (concatenate 'string id "-run" (format nil "~D" run) ".txt")
+				  :direction :output :if-exists :supersede)
+	(with-open-file (best-stream (concatenate 'string id "-best" (format nil "~D" run) ".txt")
+				     :direction :output :if-exists :supersede)
+	  (run-single-gp parameters output (list run-stream best-stream))))
+      (run-single-aco parameters output nil)))
+
+(defun run-single-gp (parameters output streams)
   "Main gp loop."
-  (let ((population (make-population pop-size initial-depth fset tset))
-	(best nil))
+  (let* ((total-generations (gp-params-total-generations parameters))
+	 (pop-size (gp-params-pop-size parameters))
+	 (initial-depth (gp-params-initial-depth parameters))
+	 (max-depth (gp-params-max-depth parameters))
+	 (fset (gp-params-fset parameters))
+	 (tset (gp-params-tset parameters))
+	 (fitness (gp-params-fitness parameters))
+	 (t-size (gp-params-t-size parameters))
+	 (cx-rate (gp-params-cx-rate parameters))
+	 (population (make-population pop-size initial-depth fset tset))
+	 (best nil) (run-best nil))
     (eval-population population pop-size fitness 1)
     (setf best (copy-individual (aref population (find-best population pop-size #'<))))
-    (output-generation 1 population pop-size best)
+    (setf run-best (copy-individual best))
+    (output-generation 1 population pop-size best run-best output streams)
     (loop for generation from 2 to total-generations
        do (let ((new-population (selection population pop-size t-size)))
 	    (apply-crossover new-population pop-size max-depth cx-rate)
@@ -566,12 +624,22 @@
 	    (elitism new-population pop-size best)
 	    (setf population new-population)
 	    (setf best (copy-individual (aref population (find-best population pop-size #'<))))
-	    (output-generation generation population pop-size best))
-       finally (return best))))
+	    (when (< (individual-fitness best) (individual-fitness run-best))
+	      (setf run-best (copy-individual best)))
+	    (output-generation generation population pop-size best run-best output streams))
+       finally (return run-best))))
 
-(defun output-generation (generation population pop-size best)
+(defun output-generation (generation population pop-size best run-best output streams)
   "Shows the state of a generation"
-  (format t "~a ~a ~a ~%" generation (individual-fitness best) (average population pop-size)))
+  (unless (eql output :none)
+    (let ((best-fitness (float (individual-fitness best)))
+	  (avg (float (average population pop-size))))
+      (when (member output '(:screen :screen+files))
+	(format t "~a ~a ~a ~%" generation best-fitness avg))
+      (when (member output '(:files :scree+files))
+	(format (first streams) "~a ~a ~a ~%" generation best-fitness avg)
+	(when (< (individual-fitness best) (individual-fitness run-best))
+	  (format (second streams) "~a ~%" (list generation run-best)))))))
 
 (defun average (population pop-size)
   "Average of population's fitness."
