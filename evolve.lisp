@@ -373,6 +373,12 @@
   (tree nil)
   (fitness 0))
 
+(defun copy-individual (individual)
+  "Fresh copy of a individual structure."
+  (make-individual
+   :tree (copy-tree (individual-tree individual))
+   :fitness (individual-fitness individual)))
+
 (defun make-random-individual (tree-limit fset tset)
   "Return a random generate tree without being evaluated."
   (make-individual :tree (ramped-half-and-half tree-limit fset tset)))
@@ -431,6 +437,27 @@
 ;;; selection
 ;;;
 
+(defun tournament (tournament-size population size)
+  "Tournament selection: return best individual from a random set of a given size."
+  (loop with best = (aref population (random size))
+     for n from 1 below tournament-size
+     do (let ((current (aref population (random size))))
+	  (when (< (individual-fitness current) (individual-fitness best))
+	    (setf best (copy-individual current))))
+     finally (return best)))
+
+(defun selection (population size tournament-size)
+  "Return a new population."
+  (loop with = new-population (make-array size)
+     for i from 0 below size
+     do (setf (aref new-population i)
+	      (tournament tournament-size population size))
+     finally (return new-population)))
+
+
+;;;
+;;; genetic operators
+;;;
 
 
 
