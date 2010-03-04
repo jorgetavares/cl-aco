@@ -59,7 +59,7 @@
 	       (r (random 1.0))
 	       (j 0)
 	       (p (aref nodes-probabilities j)))
-	  (format t "zero ~%")
+	  ;(format t "zero ~%")
 	  (loop while (< p r)
 	       do (progn
 		    (incf j)

@@ -1,24 +1,4 @@
-2010/03/01
-+ Refactored the way ACO runs are started. GP system avoids multiple problem data readings.
-
-2010/02/26
-+ Implement a calling function for the GP system that avoids loading the TSP instance on every evaluation.
-
-2010/02/24
-+ separation of code into several files and basic clean up done.
-+ Output to files done. Parsers for output files needed.
-
-2010/02/19
-+ MMAS with HCF is implemented but needs more validation. 
-  Does not give good results as it is
-+ Refactoring should be done soon.
-
-2010/02/18
-+ MMAS is working. However, still requires refinements (e.g., better update ant rule).
-+ Ant algorithms must include an HCF version, especially MMAS.
-+ Output statistics of algorithm runs is a priority
-
-2010/02/10
-+ MMAS is incomplete. Requires the mechanism for restart and convergence analysis.
-+ check the computation of the branching factor (MMAS essential)
-+ refactor code to allow better multiple ant architectures
+2010/03/04
++ ACO+GP first basic implementation completed.
++ The system is slow: profile and code optimization is priority.
++ Implement the necessary tools to analyze the data.

@@ -30,4 +30,16 @@
      finally (return duplicates)))
 
 
+;;;
+;;; stats analysis
+;;;
+
+(defun process-stats (results)
+  (let ((tours (loop for r in results
+		  collect (ant-tour-length (statistics-best-ant r))))
+	(size (length results)))
+    (values (apply #'max tours)
+	    (apply #'min tours)
+	    (float (/ (apply #'+ tours) size))
+	    (sort (copy-list tours) #'<))))
 

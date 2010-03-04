@@ -45,13 +45,12 @@
 	(gp-pheromone-update gp-tree))
   (run-aco :parameters parameters :runs runs :output output :id id))
 
-
 ;;;
 ;;; pheromone update for an aco with a gp tree
 ;;;
 
 (defun gp-pheromone-update (gp-tree)
-  "Returns the update function for ACO using a go individual."
+  "Returns the update function for ACO using a gp individual."
   #'(lambda (parameters colony stats state)
       (let* ((heuristic (colony-heuristic colony))
 	     (choice-info (colony-choice-info colony))
@@ -121,7 +120,7 @@
 
 ;; basic sets (should allow only AS and EAS)
 (defparameter *fset-basic* '(aco-prog2 aco-prog3 aco-evaporate aco-deposit))
-(defparameter *tset-basic* '(aco-rho aco-ants aco-best-ant aco-constant-int))
+(defparameter *tset-basic* '(aco-rho aco-ants aco-best-ant aco-constant-real aco-constant-int))
 
 ;; basic set + ras
 (defparameter *fset-basic+ras* (append *fset-basic* '(aco-rank-ants)))
@@ -206,15 +205,16 @@
     (rank-w-ants (1- w) *n-ants* *ants*)))
 
 (defun aco-evaporate (rho)
-  (when (numberp rho)
+  (when (and (numberp rho)
+	     (<= rho 1))
     (evaporate *n* *pheromone* rho) t))
 
 (defun aco-deposit (a w)
   (let ((weight (if (numberp w) w 0)))
     (cond ((and (arrayp a)
-		(< (length a) w))
-	   (loop for r from 1 below w
-	      do (deposit-pheromone (aref a (1- r)) *n* *pheromone* (- w r))) t)
+		(< (length a) weight))
+	   (loop for r from 1 below weight
+	      do (deposit-pheromone (aref a (1- r)) *n* *pheromone* (- weight r))) t)
 	  ((arrayp a)
 	   (loop for ant across a
 	      do (deposit-pheromone ant *n* *pheromone* weight)) t)
@@ -237,7 +237,7 @@
 (defun aco-small-int (&optional (max 10))
   (aco-constant-int max))
 
-(defun aco-constant-int (&optional (max *n-ants*))
+(defun aco-constant-int (&optional (max 51)) ; this number should be equal to n-ants
   (random max))
 
 (defun aco-constant-real ()
@@ -399,7 +399,10 @@
      for individual across population
      for id from 1 to size
      do (setf (individual-fitness individual) 
-	      (funcall fitness-function individual id generation))))
+	      (funcall fitness-function individual id generation)))
+  (loop for individual across population
+     unless (numberp (individual-fitness individual)) 
+     do (format t "ERROR!! Fitness is NIL!!!~%")))
 
 (defstruct problem-config 
   (filename eil51)
@@ -426,12 +429,14 @@
 						     (concatenate 'string 
 								  (write-to-string generation) 
 								  (write-to-string id)) "aco"))))
+	;  (random 100)))))
 	  (if (= runs 1)
 	      (ant-tour-length (statistics-best-ant (first results)))
 	      (loop 
 		 for result in results
 		 sum (ant-tour-length (statistics-best-ant result)) into total-best
-		 finally (return (/ total-best runs))))))))
+		 finally (return (/ total-best runs)))
+	      )))))
 
 ;;;
 ;;; selection
@@ -562,10 +567,11 @@
   (fitness nil)
   (t-size 3)
   (cx-rate 0.9)
+  (elitism t)
   )
 
-(defun run-aco-gp (fset tset &key (gp-runs 1) (gp-output :screen) 
-		   (generations 100) (pop-size 100) (initial-depth 2) (max-depth 5)		  
+(defun run-aco-gp (fset tset &key (gp-runs 1) (gp-output :screen) (generations 10)
+		   (pop-size 10) (initial-depth 2) (max-depth 5) (elitism t)		  
 		   (filename eil51) (aco-runs 1) (aco-output :none) 
 		   (max-iterations 100) (ant-system :gpas) (restart nil))
   "Start GP."
@@ -582,7 +588,8 @@
 				    :max-depth max-depth
 				    :fset fset
 				    :tset tset
-				    :fitness fitness)))
+				    :fitness fitness
+				    :elitism elitism)))
     (gp-multiple-runs gp-params :runs gp-runs :output gp-output :id "gp-aco")))
 
 (defun gp-multiple-runs (parameters &key (runs 1) (output :screen) (id "gp"))
@@ -598,7 +605,7 @@
 	(with-open-file (best-stream (concatenate 'string id "-best" (format nil "~D" run) ".txt")
 				     :direction :output :if-exists :supersede)
 	  (run-single-gp parameters output (list run-stream best-stream))))
-      (run-single-aco parameters output nil)))
+      (run-single-gp parameters output nil)))
 
 (defun run-single-gp (parameters output streams)
   "Main gp loop."
@@ -612,6 +619,7 @@
 	 (t-size (gp-params-t-size parameters))
 	 (cx-rate (gp-params-cx-rate parameters))
 	 (population (make-population pop-size initial-depth fset tset))
+	 (elitism-p (gp-params-elitism parameters))
 	 (best nil) (run-best nil))
     (eval-population population pop-size fitness 1)
     (setf best (copy-individual (aref population (find-best population pop-size #'<))))
@@ -621,7 +629,8 @@
        do (let ((new-population (selection population pop-size t-size)))
 	    (apply-crossover new-population pop-size max-depth cx-rate)
 	    (eval-population new-population pop-size fitness generation)
-	    (elitism new-population pop-size best)
+	    (when elitism-p
+	      (elitism new-population pop-size best))
 	    (setf population new-population)
 	    (setf best (copy-individual (aref population (find-best population pop-size #'<))))
 	    (when (< (individual-fitness best) (individual-fitness run-best))
