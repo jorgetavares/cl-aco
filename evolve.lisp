@@ -399,10 +399,8 @@
      for individual across population
      for id from 1 to size
      do (setf (individual-fitness individual) 
-	      (funcall fitness-function individual id generation)))
-  (loop for individual across population
-     unless (numberp (individual-fitness individual)) 
-     do (format t "ERROR!! Fitness is NIL!!!~%")))
+	      (funcall fitness-function individual id generation))))
+
 
 (defstruct problem-config 
   (filename eil51)
@@ -429,14 +427,12 @@
 						     (concatenate 'string 
 								  (write-to-string generation) 
 								  (write-to-string id)) "aco"))))
-	;  (random 100)))))
 	  (if (= runs 1)
 	      (ant-tour-length (statistics-best-ant (first results)))
 	      (loop 
 		 for result in results
 		 sum (ant-tour-length (statistics-best-ant result)) into total-best
-		 finally (return (/ total-best runs)))
-	      )))))
+		 finally (return (float (/ total-best runs)))))))))
 
 ;;;
 ;;; selection
@@ -570,7 +566,7 @@
   (elitism t)
   )
 
-(defun run-aco-gp (fset tset &key (gp-runs 1) (gp-output :screen) (generations 10)
+(defun run-aco-gp (fset tset &key (gp-id "gp-aco") (gp-runs 1) (gp-output :screen) (generations 10)
 		   (pop-size 10) (initial-depth 2) (max-depth 5) (elitism t)		  
 		   (filename eil51) (aco-runs 1) (aco-output :none) 
 		   (max-iterations 100) (ant-system :gpas) (restart nil))
@@ -590,7 +586,7 @@
 				    :tset tset
 				    :fitness fitness
 				    :elitism elitism)))
-    (gp-multiple-runs gp-params :runs gp-runs :output gp-output :id "gp-aco")))
+    (gp-multiple-runs gp-params :runs gp-runs :output gp-output :id gp-id)))
 
 (defun gp-multiple-runs (parameters &key (runs 1) (output :screen) (id "gp"))
   "Run the gp engine for several runs"
@@ -647,7 +643,7 @@
 	(format t "~a ~a ~a ~%" generation best-fitness avg))
       (when (member output '(:files :scree+files))
 	(format (first streams) "~a ~a ~a ~%" generation best-fitness avg)
-	(when (< (individual-fitness best) (individual-fitness run-best))
+	(when (<= (individual-fitness best) (individual-fitness run-best))
 	  (format (second streams) "~a ~%" (list generation run-best)))))))
 
 (defun average (population pop-size)

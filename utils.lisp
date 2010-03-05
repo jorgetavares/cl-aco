@@ -40,6 +40,7 @@
 	(size (length results)))
     (values (apply #'max tours)
 	    (apply #'min tours)
+	    (1+ (position (apply #'min tours) tours))
 	    (float (/ (apply #'+ tours) size))
 	    (sort (copy-list tours) #'<))))
 

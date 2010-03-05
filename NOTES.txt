@@ -1,4 +1,4 @@
 2010/03/04
 + ACO+GP first basic implementation completed.
-+ The system is slow: profile and code optimization is priority.
++ The system is slow: profile and code optimization is a priority.
 + Implement the necessary tools to analyze the data.
