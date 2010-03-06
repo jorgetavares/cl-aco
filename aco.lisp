@@ -80,6 +80,8 @@
 ;;;
 
 (defparameter eil51 "/Users/jast/workspace/cl-tsplib/instances/eil51.tsp")
+(defparameter burma14 "/Users/jast/workspace/cl-tsplib/instances/burma14.tsp")
+
 
 (defun symmetric-tsp (route n distances)
   "Computes the length of a symmetric tsp route."

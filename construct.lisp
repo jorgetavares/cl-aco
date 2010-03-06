@@ -22,7 +22,10 @@
   "Mark all cities to unvisited."
   (loop for ant across ants
      do (loop for i from 1 to n
-	   do (setf (aref (ant-visited ant) i) nil))))
+	   do (progn
+		(setf (aref (ant-visited ant) i) nil)
+		(setf (aref (ant-tour ant) i) 0 )))
+     do (setf (aref (ant-tour ant) (1+ n)) 0)))
 
 (defun assign-initial-city (n ants step)
   "Assign a random initial city and marks it as visited."

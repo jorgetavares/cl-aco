@@ -11,38 +11,29 @@
 	 (visited (ant-visited ant))
 	 (sum-probabilities 0.0)
 	 (selection-probability (make-array (1+ n) :initial-element 0.0))
-	 (c (aref tour (1- step))))
+	 (c (aref tour (1- step)))
+	 (ok nil) (data nil))
+    (if (verify-incomplete-tour tour)
+	(progn (format t "DEBUG 1: ERROR!!!! BAD SOLUTION!!! Not every city was visited!!~%")
+	       (format t "~a~% ~a~% ~a~% ~a~% ~a ~a ~a ~a~% ~a~%" sum-probabilities selection-probability
+		       visited tour 
+		       (verify-incomplete-tour tour) step c n ant)
+	       ;(error "DEBUG 1: Some cities were not visited!")
+	       )
+	(setf ok t))
     (loop for j from 1 to n
        do (if (equal (aref visited j) t) 
 	      (setf (aref selection-probability j) 0.0)
 	      (progn
 		(setf (aref selection-probability j) (aref choice-info c j))
 		(setf sum-probabilities (+ sum-probabilities (aref selection-probability j))))))
-    ;;; DEBUG
-    ;;; - SUM-PROBABILITIES cannot be 0.0!
-    ;(when (= sum-probabilities 0.0)
-    ;  (let ((index  (loop 
-;		       for n from 0 below (length visited)
-;		       for pos across visited
-;		       when (eql pos nil)
-;		       collect n into positions
-;		       finally (return positions))))
-;     (format t "~% ~a~% ~a~% ~a ~a ~a ~a~% ~a~% ~a~% ~a ~a ~a ~a ~%" 
-;	      visited 
-;	      tour 
-;	      c 
-;	      step 
-;	      (length visited)
-;	      (length tour)
-;	      (verify-tour tour)
-;	      index
-;	      (aref choice-info c (first index))
-;	      (aref choice-info c (second index))
-	     ; (aref heuristic c (second index))
-	     ; (aref pheromone c (second index))
-;	      nil nil
-;	      )))
-    ;;; END DEBUG
+    (if (verify-incomplete-tour tour)
+	(progn (format t "DEBUG 2:ERROR!!!! BAD SOLUTION!!! Not every city was visited!!~%")
+	       (format t "~a~% ~a~%~a~% ~a~% ~a~%" sum-probabilities selection-probability
+		       visited tour (verify-incomplete-tour tour))
+	       ;(error "DEBUG 2: Some cities were not visited!")
+	       )
+	(setf ok t))
     (if (= sum-probabilities 0.0)
 	;; all remaining cities have 0 pheromone
 	;; so, all have the same probability of being chosen
@@ -59,7 +50,7 @@
 	       (r (random 1.0))
 	       (j 0)
 	       (p (aref nodes-probabilities j)))
-	  ;(format t "zero ~%")
+	 ; (format t "zero ~%")
 	  (loop while (< p r)
 	       do (progn
 		    (incf j)
@@ -67,14 +58,63 @@
 	  (setf (aref tour step) (nth j last-nodes))
 	  (setf (aref visited (nth j last-nodes)) t))
 	;; normal mode
-	(let* ((r (random sum-probabilities))
-	       (j 1) (p (aref selection-probability j)))
+	(let* ((nodes (loop with size = (length visited)
+			 for i from 0 below size
+			 for j across visited
+			 when (eql j nil)
+			 collect i into nodes
+			 finally (return nodes)))
+	       (size (length nodes))
+	       (last-nodes (subseq nodes 1 (1- size)))
+	       (size-nodes (length last-nodes))
+	       (nodes-probabilities (make-array size-nodes
+						:initial-contents
+						(loop for i in last-nodes
+						   collect (aref selection-probability i))))
+	       (r (random sum-probabilities))
+	       (j 0)
+	       (p (aref nodes-probabilities j)))
 	  (loop while (< p r)
 	     do (progn
 		  (incf j)
-		  (incf p (aref selection-probability j))))
-	  (setf (aref tour step) j)
-	  (setf (aref visited j) t)))))
+		  (incf p (aref nodes-probabilities j))))
+	  (setf (aref tour step) (nth j last-nodes))
+	  (setf (aref visited (nth j last-nodes)) t))
+
+;	(let* ((r (random sum-probabilities))
+;	       (j 1) (p (aref selection-probability j)))
+	 ; (format t "normal ~%")
+;	  (loop while (< p r)
+;	     do (progn
+;		  (incf j)
+;		  (incf p (aref selection-probability j))))
+;	  (setf (aref tour step) j)
+;	  (setf (aref visited j) t)
+;	  (setf data (list r p j)))
+	)
+    (let ((ver (verify-incomplete-tour tour)))
+      (when ver
+	(format t "DEBUG 3: ERROR!!!! BAD SOLUTION!!! Not every city was visited!!~%")
+	(format t "~a~% ~a~% ~a~% ~a~% ~a~% ~a~% ~a ~a ~a~%" sum-probabilities selection-probability
+		visited tour ok ver c step data)
+	(error "DEBUG 3: Some cities were not visited!")))
+    ))
+
+(defun verify-visited (n visited)
+  (notevery #'(lambda (x) (eql x t))
+	    (loop for v from 1 to n 
+	       collect (aref visited v))))
+
+(defun verify-incomplete-tour (tour)
+   (loop with list = (remove 0 (loop for x across tour collect x))
+     for pos across tour
+     for n from 0 below (length tour)
+     when (member pos (remove-first pos list))
+     collect n into duplicates
+     finally (return duplicates)))
+  
+
+
 
 (defun as-decision-with-neighbors (ant step n choice-info parameters)
   "Determines an ant next action to be executed (ant system, no candidates list)."
