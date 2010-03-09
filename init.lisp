@@ -76,35 +76,10 @@
     (setf (parameters-distances parameters)
 	  (cl-tsplib:problem-instance-distance-matrix tsp-instance))
     (setf (parameters-nearest-neighbors parameters)
-	  (list-nearest-neighbors (parameters-distances parameters)
-				  (parameters-n parameters)
-				  (parameters-n-neighbors parameters)))
+	  (cl-tsplib:list-nearest-neighbors (parameters-distances parameters)
+					    (parameters-n parameters)
+					    (parameters-n-neighbors parameters)))
     parameters))
 
 
-;;;
-;;; auxiliary funtions to compute nearest neighbors 
-;;; of the TSP instance (should be moved to cl-tsplib)
-
-(defun list-nearest-neighbors (distances n &optional (n-neighbors (- n 1)))
-  "Returns the list of the nearest enighbors for a set of cities."
-  (let ((nearest-list (make-array `(,(1+ n) ,(1+ n-neighbors)) :initial-element 0))
-	(all-neighbors (compute-nearest-neighbors distances n)))
-    (loop 
-       for i from 1 to n
-       for neighbors in all-neighbors
-       do (loop for j from 1 to n-neighbors
-	     do (setf (aref nearest-list i j) 
-		      (nth j neighbors)))
-       finally (return nearest-list))))
-    
-(defun compute-nearest-neighbors (distances n)
-  "Computes all the nearest neighbors given a distance matrix."
-  (loop with indexes = (loop for i from 1 to n collect i) 
-     for i from 1 to n
-     collect (loop for j from 0 to n
-		collect (aref distances i j) into distances-list
-		finally (return (remove i (sort (copy-list indexes) #'< 
-						:key #'(lambda (x) 
-							 (nth x distances-list))))))))
 
