@@ -49,6 +49,7 @@
 ;;
 ;; representation of ants and ACO data
 
+;; NOTE: the ant structure must be generalized for diferent problems
 (defstruct ant
   tour-length
   tour
@@ -73,23 +74,6 @@
   (restarts 0)
   (branching 0)
   )
-
-
-;;;
-;;; problem specific functions and data
-;;;
-
-(defparameter eil51 "/Users/jast/workspace/cl-tsplib/instances/eil51.tsp")
-(defparameter burma14 "/Users/jast/workspace/cl-tsplib/instances/burma14.tsp")
-
-
-(defun symmetric-tsp (route n distances)
-  "Computes the length of a symmetric tsp route."
-  (loop 
-     for i from 1 to n
-     for j from 2 to (1+ n)
-     sum (aref distances (aref route i) (aref route j))))
-
 
 ;;;
 ;;; ACO run modes
@@ -139,20 +123,24 @@
 
 (defun run-aco (&key (filename nil) (parameters nil) (runs 1) (output :screen) (id "aco"))
   "Run setup and a number of runs."
-  (let ((params (if filename (read-problem-data filename parameters) parameters)))
+  ;; NOTE: read-problem-data must be generalized for different problems
+  (let ((params (if filename (read-problem-data filename parameters) parameters))) 
     (loop for run from 1 to runs 
        collect (config-output-run-aco params output run id))))
 
 (defun config-output-run-aco (parameters output run id)
   "Start an ACO run with or without saving data to files, and/or displaying on screen."
   (if (member output '(:files :screen+files :full))
-      (with-open-file (run-stream (concatenate 'string id "-run" (format nil "~D" run) ".txt")
-				  :direction :output :if-exists :supersede)
-	(with-open-file (best-stream (concatenate 'string id "-best" (format nil "~D" run) ".txt")
-				     :direction :output :if-exists :supersede)
+      (with-open-file (run-stream 
+		       (concatenate 'string id "-run" (format nil "~D" run) ".txt")
+		       :direction :output :if-exists :supersede)
+	(with-open-file (best-stream 
+			 (concatenate 'string id "-best" (format nil "~D" run) ".txt")
+			 :direction :output :if-exists :supersede)
 	  (if (eql output :full)
-	      (with-open-file (pheromone-stream (concatenate 'string id "-pheromone" (format nil "~D" run) ".txt")
-						:direction :output :if-exists :supersede)
+	      (with-open-file (pheromone-stream 
+			       (concatenate 'string id "-pheromone" (format nil "~D" run) ".txt")
+			       :direction :output :if-exists :supersede)
 		(run-single-aco parameters output (list run-stream best-stream pheromone-stream)))
 	      (run-single-aco parameters output (list run-stream best-stream)))))
       (run-single-aco parameters output nil)))
@@ -244,7 +232,8 @@
 	(format t "~a | b: ~a | r: ~a ~a | c: ~a | avg: ~6,4F | cf: ~6,4F | trails: ~a ~a ~%"  
 		iteration best restart-best restarts current-best avg cf min max))
       (when (member output '(:files :screen+files :full))
-	(format (first streams)  "~a~%" (list iteration best restart-best restarts current-best avg cf min max)))
+	(format (first streams)  "~a~%" 
+		(list iteration best restart-best restarts current-best avg cf min max)))
       (when (member output '(:full))
 	(format (third streams) "~a~%" (list (colony-pheromone colony))))
       )))

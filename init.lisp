@@ -62,24 +62,7 @@
        finally (return ants))))
 
 
-;;;
-;;; init problem parameters for TSP
-;;; 
 
-(defun read-problem-data (filename parameters)
-  "read from file the problem data (still loacked to TSP.)"
-  (let ((tsp-instance (cl-tsplib:parse-problem-instance filename)))
-    (when (eql parameters nil)
-      (setf parameters (make-parameters)))
-    (setf (parameters-n parameters)
-	  (cl-tsplib:problem-instance-dimension tsp-instance))
-    (setf (parameters-distances parameters)
-	  (cl-tsplib:problem-instance-distance-matrix tsp-instance))
-    (setf (parameters-nearest-neighbors parameters)
-	  (cl-tsplib:list-nearest-neighbors (parameters-distances parameters)
-					    (parameters-n parameters)
-					    (parameters-n-neighbors parameters)))
-    parameters))
 
 
 

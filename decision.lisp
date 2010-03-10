@@ -12,28 +12,29 @@
 	 (sum-probabilities 0.0)
 	 (selection-probability (make-array (1+ n) :initial-element 0.0))
 	 (c (aref tour (1- step)))
-	 (ok nil) (data nil))
-    (if (verify-incomplete-tour tour)
-	(progn (format t "DEBUG 1: ERROR!!!! BAD SOLUTION!!! Not every city was visited!!~%")
-	       (format t "~a~% ~a~% ~a~% ~a~% ~a ~a ~a ~a~% ~a~%" sum-probabilities selection-probability
-		       visited tour 
-		       (verify-incomplete-tour tour) step c n ant)
-	       ;(error "DEBUG 1: Some cities were not visited!")
-	       )
-	(setf ok t))
+	 )
+;	 (ok nil) (data nil))
+;    (if (verify-incomplete-tour tour)
+;	(progn (format t "DEBUG 1: ERROR!!!! BAD SOLUTION!!! Not every city was visited!!~%")
+;	       (format t "~a~% ~a~% ~a~% ~a~% ~a ~a ~a ~a~% ~a~%" sum-probabilities selection-probability
+;		       visited tour 
+;		       (verify-incomplete-tour tour) step c n ant)
+;	       ;(error "DEBUG 1: Some cities were not visited!")
+;	       )
+;	(setf ok t))
     (loop for j from 1 to n
        do (if (equal (aref visited j) t) 
 	      (setf (aref selection-probability j) 0.0)
 	      (progn
 		(setf (aref selection-probability j) (aref choice-info c j))
 		(setf sum-probabilities (+ sum-probabilities (aref selection-probability j))))))
-    (if (verify-incomplete-tour tour)
-	(progn (format t "DEBUG 2:ERROR!!!! BAD SOLUTION!!! Not every city was visited!!~%")
-	       (format t "~a~% ~a~%~a~% ~a~% ~a~%" sum-probabilities selection-probability
-		       visited tour (verify-incomplete-tour tour))
-	       ;(error "DEBUG 2: Some cities were not visited!")
-	       )
-	(setf ok t))
+;    (if (verify-incomplete-tour tour)
+;	(progn (format t "DEBUG 2:ERROR!!!! BAD SOLUTION!!! Not every city was visited!!~%")
+;	       (format t "~a~% ~a~%~a~% ~a~% ~a~%" sum-probabilities selection-probability
+;		       visited tour (verify-incomplete-tour tour))
+;	       ;(error "DEBUG 2: Some cities were not visited!")
+;	       )
+;	(setf ok t))
     (if (= sum-probabilities 0.0)
 	;; all remaining cities have 0 pheromone
 	;; so, all have the same probability of being chosen
@@ -92,29 +93,13 @@
 ;	  (setf (aref visited j) t)
 ;	  (setf data (list r p j)))
 	)
-    (let ((ver (verify-incomplete-tour tour)))
-      (when ver
-	(format t "DEBUG 3: ERROR!!!! BAD SOLUTION!!! Not every city was visited!!~%")
-	(format t "~a~% ~a~% ~a~% ~a~% ~a~% ~a~% ~a ~a ~a~%" sum-probabilities selection-probability
-		visited tour ok ver c step data)
-	(error "DEBUG 3: Some cities were not visited!")))
+;    (let ((ver (verify-incomplete-tour tour)))
+;     (when ver
+;	(format t "DEBUG 3: ERROR!!!! BAD SOLUTION!!! Not every city was visited!!~%")
+;	(format t "~a~% ~a~% ~a~% ~a~% ~a~% ~a~% ~a ~a ~a~%" sum-probabilities selection-probability
+;		visited tour ok ver c step data)
+;	(error "DEBUG 3: Some cities were not visited!")))
     ))
-
-(defun verify-visited (n visited)
-  (notevery #'(lambda (x) (eql x t))
-	    (loop for v from 1 to n 
-	       collect (aref visited v))))
-
-(defun verify-incomplete-tour (tour)
-   (loop with list = (remove 0 (loop for x across tour collect x))
-     for pos across tour
-     for n from 0 below (length tour)
-     when (member pos (remove-first pos list))
-     collect n into duplicates
-     finally (return duplicates)))
-  
-
-
 
 (defun as-decision-with-neighbors (ant step n choice-info parameters)
   "Determines an ant next action to be executed (ant system, no candidates list)."

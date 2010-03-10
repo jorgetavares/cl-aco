@@ -1,0 +1,45 @@
+;;;;
+;;;; ACO for TSP
+;;;; - specific code for TSP using :cl-aco 
+;;;; - NOTE: at this point, :cl-aco is directly connected to 
+;;;;   the TSP problem and is not suficient generalized to be 
+;;;;   used with other problems. The plan is to change that 
+;;;;   in the near future.
+;;;;
+
+(in-package #:cl-aco)
+(use-package :cl-tsplib)
+
+;;;
+;;; problem specific functions and data
+;;;
+
+(defparameter eil51 "/Users/jast/workspace/cl-tsplib/instances/eil51.tsp")
+(defparameter burma14 "/Users/jast/workspace/cl-tsplib/instances/burma14.tsp")
+
+
+(defun symmetric-tsp (route n distances)
+  "Computes the length of a symmetric tsp route."
+  (loop 
+     for i from 1 to n
+     for j from 2 to (1+ n)
+     sum (aref distances (aref route i) (aref route j))))
+
+;;;
+;;; init problem parameters for TSP
+;;; 
+
+(defun read-problem-data (filename parameters)
+  "read from file the problem data (still loacked to TSP.)"
+  (let ((tsp-instance (cl-tsplib:parse-problem-instance filename)))
+    (when (eql parameters nil)
+      (setf parameters (make-parameters)))
+    (setf (parameters-n parameters)
+	  (cl-tsplib:problem-instance-dimension tsp-instance))
+    (setf (parameters-distances parameters)
+	  (cl-tsplib:problem-instance-distance-matrix tsp-instance))
+    (setf (parameters-nearest-neighbors parameters)
+	  (cl-tsplib:list-nearest-neighbors (parameters-distances parameters)
+					    (parameters-n parameters)
+					    (parameters-n-neighbors parameters)))
+    parameters))

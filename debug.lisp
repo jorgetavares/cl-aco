@@ -56,10 +56,10 @@
 							 (parameters-distances parameters)))))
     (values parameters colony)))
 
-(defun debug-aco (&key (runs 1) (output t))
-  (multiple-value-bind (parameters colony)
-      (debug-setup-aco)
-    (run-multiple-aco-tsp parameters colony runs output)))
+;(defun debug-aco (&key (runs 1) (output t))
+;  (multiple-value-bind (parameters colony)
+;      (debug-setup-aco)
+;    (run-multiple-aco-tsp parameters colony runs output)))
 	   
 (defun debug-branch (pheromone &optional (n 4) (l 0.05))
   (let* ((branches (make-array (1+ n) :initial-element 0)))

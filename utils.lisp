@@ -37,6 +37,18 @@
 	  (cons (first list) 
 		(remove-first object (rest list))))))
 
+(defun verify-visited (n visited)
+  (notevery #'(lambda (x) (eql x t))
+	    (loop for v from 1 to n 
+	       collect (aref visited v))))
+
+(defun verify-incomplete-tour (tour)
+   (loop with list = (remove 0 (loop for x across tour collect x))
+     for pos across tour
+     for n from 0 below (length tour)
+     when (member pos (remove-first pos list))
+     collect n into duplicates
+     finally (return duplicates)))
   
 
 ;;;
