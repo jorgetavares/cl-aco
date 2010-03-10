@@ -7,8 +7,33 @@
 ;;;;   in the near future.
 ;;;;
 
-(in-package #:cl-aco)
-(use-package :cl-tsplib)
+(in-package #:cl-aco-tsp)
+
+;;;
+;;; running aco for TSP
+;;;
+
+(defun aco-tsp (&key (ant-system :as) (filename eil51) (runs 1) (iterations 100) (output :screen))
+  "Launch an ACO system for TSP."
+  (case ant-system
+    (:as (ant-system :runs runs :iterations iterations :output output 
+		     :filename filename
+		     :problem-reader #'read-problem-data 
+		     :cost-function #'symmetric-tsp))
+    (:eas (elite-ant-system :runs runs :iterations iterations :output output 
+			    :filename filename
+			    :problem-reader #'read-problem-data 
+			    :cost-function #'symmetric-tsp))
+    (:ras  (rank-ant-system :runs runs :iterations iterations :output output 
+			    :filename filename
+			    :problem-reader #'read-problem-data
+			    :cost-function #'symmetric-tsp))
+    (:mmas (min-max-ant-system :runs runs :iterations iterations :output output 
+			       :filename filename
+			       :problem-reader #'read-problem-data 
+			       :cost-function #'symmetric-tsp))
+    ))
+
 
 ;;;
 ;;; problem specific functions and data
@@ -43,3 +68,38 @@
 					    (parameters-n parameters)
 					    (parameters-n-neighbors parameters)))
     parameters))
+
+
+;;;
+;;; utils
+;;;
+
+(defun verify-tour (tour)
+  "Return duplicates nodes in a tour; nil if tour is correct."
+  (loop with list = (loop for x across tour collect x)
+     for pos across tour
+     for n from 0 below (length tour)
+     when (member pos (remove-first pos list))
+     collect n into duplicates
+     finally (return duplicates)))
+
+(defun remove-first (object list)
+  (if (null list)
+      nil
+      (if (eql object (first list))
+	  (rest list)
+	  (cons (first list) 
+		(remove-first object (rest list))))))
+
+(defun verify-visited (n visited)
+  (notevery #'(lambda (x) (eql x t))
+	    (loop for v from 1 to n 
+	       collect (aref visited v))))
+
+(defun verify-incomplete-tour (tour)
+   (loop with list = (remove 0 (loop for x across tour collect x))
+     for pos across tour
+     for n from 0 below (length tour)
+     when (member pos (remove-first pos list))
+     collect n into duplicates
+     finally (return duplicates)))

@@ -4,6 +4,7 @@
 
 (in-package #:cl-aco)
 
+
 ;;;
 ;;; data structures
 ;;;
@@ -25,7 +26,7 @@
   (avg-cost 426)
   (pheromone-update #'mmas-pheromone-update)
   (decision-rule #'as-decision)
-  (eval-tour #'symmetric-tsp)
+  (eval-tour nil) ;; NOTE: requires generalization
   (lambda 0.05)
   (convergence-function #'branching-factor)
   (stagnation-limit 3)
@@ -82,49 +83,65 @@
 ;;
 ;; run by Ant System
 
-(defun ant-system (filename &key (runs 1) (max-iterations 1000) (output :screen))
+(defun ant-system (&key (runs 1) (iterations 1000) (output :screen) 
+		   filename problem-reader cost-function)
   "Ant System standard run."
-  (let ((parameters (make-parameters :max-iterations max-iterations
+  (let ((parameters (make-parameters :max-iterations iterations
 				     :ant-system :as
 				     :pheromone-update #'as-pheromone-update
 				     :decision-rule #'as-decision
+				     :eval-tour cost-function
 				     :restart nil)))
-    (run-aco :filename filename :parameters parameters :runs runs :output output :id "as")))
+    (run-aco :filename filename :problem-reader problem-reader :cost-function cost-function 
+	     :parameters parameters :runs runs :output output :id "as")))
 
-(defun elite-ant-system (filename &key (runs 1) (max-iterations 1000) (output :screen))
+(defun elite-ant-system (&key (runs 1) (iterations 1000) (output :screen) 
+			 filename problem-reader cost-function)
   "Elite Ant System standard run."
-  (let ((parameters (make-parameters :max-iterations max-iterations
+  (let ((parameters (make-parameters :max-iterations iterations
 				     :ant-system :eas
 				     :pheromone-update #'eas-pheromone-update
 				     :decision-rule #'as-decision
+				     :eval-tour cost-function
 				     :restart nil)))
-    (run-aco :filename filename :parameters parameters :runs runs :output output :id "eas")))
+    (run-aco :filename filename :problem-reader problem-reader :cost-function cost-function 
+	     :parameters parameters :runs runs :output output :id "eas")))
 
-(defun rank-ant-system (filename &key (runs 1) (max-iterations 1000) (output :screen))
+(defun rank-ant-system (&key (runs 1) (iterations 1000) (output :screen) 
+			filename problem-reader cost-function)
   "Rank-based Ant System standard run."
-  (let ((parameters (make-parameters :max-iterations max-iterations
+  (let ((parameters (make-parameters :max-iterations iterations
 				     :ant-system :ras
 				     :pheromone-update #'rank-pheromone-update
 				     :decision-rule #'as-decision
+				     :eval-tour cost-function
 				     :restart nil)))
-    (run-aco :filename filename :parameters parameters :runs runs :output output :id "ras")))
+    (run-aco :filename filename :problem-reader problem-reader :cost-function cost-function 
+	     :parameters parameters :runs runs :output output :id "ras")))
 
-(defun min-max-ant-system (filename &key (runs 1) (max-iterations 1000) (output :screen))
+(defun min-max-ant-system (&key (runs 1) (iterations 1000) (output :screen) 
+			   filename problem-reader cost-function)
   "Min-Max Ant System standard run."
-  (let ((parameters (make-parameters :max-iterations max-iterations
+  (let ((parameters (make-parameters :max-iterations iterations
 				     :ant-system :mmas
 				     :pheromone-update #'mmas-pheromone-update
 				     :decision-rule #'as-decision
+				     :eval-tour cost-function
 				     :restart t)))
-    (run-aco :filename filename :parameters parameters :runs runs :output output :id "mmas")))
+    (run-aco :filename filename :problem-reader problem-reader :cost-function cost-function 
+	     :parameters parameters :runs runs :output output :id "mmas")))
 
 ;;
 ;; generic run functions
 
-(defun run-aco (&key (filename nil) (parameters nil) (runs 1) (output :screen) (id "aco"))
+(defun run-aco (&key (filename nil) (parameters nil) 
+		(runs 1) (output :screen) (id "aco") problem-reader cost-function)
   "Run setup and a number of runs."
   ;; NOTE: read-problem-data must be generalized for different problems
-  (let ((params (if filename (read-problem-data filename parameters) parameters))) 
+  (let ((params (if filename 
+		    (funcall problem-reader filename parameters) 
+		    parameters)))
+    (setf (parameters-eval-tour params) cost-function)
     (loop for run from 1 to runs 
        collect (config-output-run-aco params output run id))))
 

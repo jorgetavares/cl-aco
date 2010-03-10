@@ -1,10 +1,10 @@
 2010/03/10
 + Package is being generalized: 
-	1) tsp code is in one file
-	2) not dependent on :cl-tsplib
-	3) evolve code will be moved to proper project package
-	4) still requires considerable changes to allow other problems
-	5) clean files and new tag must be a quick goal
+	1) tsp code is in one file and in separate package
+	   [all future problems should be done in the same way]
+	2) evolve code is moved to proper project package [evoants]
+	3) still requires considerable changes to allow other problems
+	4) clean files and new tag must be a quick goal
 	
 2010/03/04
 + ACO+GP first basic implementation completed.

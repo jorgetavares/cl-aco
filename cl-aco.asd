@@ -22,11 +22,4 @@
 						 "decision"
 						 "construct"
 						 "convergence"))
-	       (:file "tsp"         :depends-on ("package" "aco"))
-	       (:file "profile"     :depends-on ("package" 
-						 "aco" 
-						 "tsp"))
-	       (:file "debug"       :depends-on ("package" 
-						 "aco"
-						 "tsp"))
 	       ))
