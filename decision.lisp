@@ -152,54 +152,30 @@
   (let* ((tour (ant-tour ant))
 	 (visited (ant-visited ant))
 	 (sum-probabilities 0.0)
-	 (selection-probability (make-array (1+ n) :initial-element 0.0))
-	 (c (aref tour (1- step))))
-    (loop for j from 1 to n
-       unless (aref visited j) 
-       do (setf (aref selection-probability j) (aref choice-info c j))
-       and do (setf sum-probabilities (+ sum-probabilities (aref selection-probability j))))
-    (if (= sum-probabilities 0.0)
-	;; all remaining cities have 0 pheromone
-	;; so, all have the same probability of being chosen
-	(let ((nodes (make-array n :initial-element 0))
-	      (size 0))
-	  (loop 
-	     for i from 1 to n
-	     unless (aref visited i) 
-	     do (progn
-		  (setf (aref nodes size) i)
-		  (incf size)))
-	  (let* ((nodes-probabilities (make-array size :initial-element (/ 1 size)))
-		 (r (random 1.0))
-		 (j 0)
-		 (p (aref nodes-probabilities j)))
-	    (loop while (< p r)
-	       do (progn
-		    (incf j)
-		    (incf p (aref nodes-probabilities j))))
-	    (let ((node (aref nodes j)))
-	      (setf (aref tour step) node)
-	      (setf (aref visited node) t))))
-	;; normal mode
-	(let ((nodes (make-array n :initial-element 0))
-	      (nodes-probabilities (make-array n :initial-element 0.0))
-	      (size 0))
-	  (loop 
-	     for i from 1 to n
-	     unless (aref visited i) 
-	     do (progn
-		  (setf (aref nodes size) i)
-		  (setf (aref nodes-probabilities size) 
-			(aref selection-probability i))
-		  (incf size)))
-	  (let* ((r (random sum-probabilities))
-		 (j 0)
-		 (p (aref nodes-probabilities j)))
-	    (loop while (< p r)
-	       do (progn
-		    (incf j)
-		    (incf p (aref nodes-probabilities j))))
-	    (let ((node  (aref nodes j)))
-	      (setf (aref tour step) node)
-	      (setf (aref visited node) t)))
-	  ))))
+	 (c (aref tour (1- step)))
+	 (nodes (make-array n :initial-element 0))
+	 (nodes-probabilities (make-array n :initial-element 0.0))
+	 (size 0))
+    (loop 
+       for i from 1 to n
+       unless (aref visited i) 
+       do (let ((node-probability (aref choice-info c i)))
+	    (setf (aref nodes size) i)
+	    (setf (aref nodes-probabilities size) node-probability)
+	    (incf sum-probabilities node-probability)
+	    (incf size)))
+    (when (<= sum-probabilities 0.0)
+      (setf sum-probabilities 1.0)
+      (setf nodes-probabilities (make-array size :initial-element (/ 1 size))))
+    (let* ((r (random sum-probabilities))
+	   (j 0)
+	   (p (aref nodes-probabilities j)))
+      (loop while (< p r)
+	 do (progn
+	      (incf j)
+	      (incf p (aref nodes-probabilities j))))
+      (let ((node  (aref nodes j)))
+	(setf (aref tour step) node)
+	(setf (aref visited node) t)))))
+
+
