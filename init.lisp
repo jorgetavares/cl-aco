@@ -42,15 +42,16 @@
 
 (defun init-choice-info (n pheromone heuristic alpha beta)
   "Return a fresh choice-info matrix."
-  (let ((matrix (make-array `(,(1+ n) ,(1+ n)) 
+   (let ((matrix (make-array (* n n) 
 			    :initial-element 0.0
 			    :element-type 'single-float)))
     (loop for i from 1 to n
        do (loop for j from 1 to n
-	     do (setf (aref matrix i j)
+	     do (setf (aref matrix (1- (+ (- (* n i) n) j)))
 		      (* (expt (aref pheromone i j) alpha) 
 			 (expt (aref heuristic i j) beta))))
        finally (return matrix))))
+
 
 ;;
 ;; init set of ants
@@ -63,7 +64,7 @@
 		  (make-ant :tour-length nil
 			    :tour (make-array (+ n 2) 
 					      :initial-element 0
-					      :element-type 'fixnum)
+					      :element-type 'node)
 			    :visited (make-array (+ n 2) 
 						 :initial-element nil
 						 :element-type 'boolean)))

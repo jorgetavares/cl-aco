@@ -4,7 +4,6 @@
 
 (in-package #:cl-aco)
 
-
 ;;;
 ;;; data structures
 ;;;

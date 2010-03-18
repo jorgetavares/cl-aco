@@ -126,7 +126,7 @@
   "Updates the matrix with the pheromone and heuristic combined info."
   (loop for i from 1 to n
      do (loop for j from 1 to n
-	   do (setf (aref choice-info i j)
+	   do (setf (aref choice-info (1- (+ (- (* n i) n) j)))
 		    (* (expt (aref pheromone i j) alpha) 
 		       (expt (aref heuristic i j) beta))))))
 

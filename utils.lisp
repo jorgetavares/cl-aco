@@ -4,6 +4,21 @@
 ;;; utils
 ;;;
 
+;; types for as-decision optimization
+;(deftype node () '(integer 0 *))
+(deftype node () 'fixnum)
+
+(deftype array-node () '(simple-array node (*)))
+(deftype array-boolean () '(simple-array boolean (*)))
+
+(deftype float-array () '(simple-array single-float (*)))
+(deftype float-matrix () '(array single-float (* *)))
+
+
+;;;
+;;; functions
+;;;
+
 (defun safe-copy-ant (ant)
   "Return a fresh structure of a given ant."
   (make-ant

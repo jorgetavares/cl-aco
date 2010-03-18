@@ -24,31 +24,34 @@
 	   (optimize (speed 3) (safety 1))
 	   (type node n)
 	   (type node step)
-	   (type float-matrix choice-info))
-   (let* ((tour (the array-node (ant-tour ant)))
+	   (type (simple-array single-float (*)) choice-info))
+  (let* ((tour (the array-node (ant-tour ant)))
 	 (visited (the array-boolean (ant-visited ant)))
 	 (sum-probabilities 0.0)
 	 (c (aref tour (1- step)))
 	 (nodes (the array-node (make-array n 
 					    :initial-element 0 
 					    :element-type 'node)))
-	  (nodes-probabilities (the float-array
-				 (make-array n 
-					     :initial-element 0.0 
-					     :element-type 'single-float)))
-	  (size 0))
+	 (nodes-probabilities (the float-array
+				(make-array n 
+					    :initial-element 0.0 
+					    :element-type 'single-float)))
+	 (size 0))
     (declare (type single-float sum-probabilities))
     ;; collects all unvisited nodes and respective 
     ;; probabilities of being picked next
-    (loop 
-       for i from 1 to n
-       unless (aref visited i) 
-       do (let ((node-probability (aref (the float-matrix choice-info) c i)))
-	    (declare (type single-float node-probability))
-	    (setf (aref nodes size) i)
-	    (setf (aref nodes-probabilities size) node-probability)
-	    (incf sum-probabilities node-probability)
-	    (incf size)))
+    (let ((nc (- (* n c) n)))
+      (locally (declare (type fixnum nc))
+	(loop 
+	   for i from 1 to n
+	   unless (aref visited i) 
+	   do (let ((node-probability (aref choice-info (1- (+ nc i)))))
+		(declare (type single-float node-probability))
+		(setf (aref nodes size) i)
+		(setf (aref nodes-probabilities size) node-probability)
+		(incf sum-probabilities node-probability)
+		(incf size))))
+    )
     ;; pheromones are zero or very close to it, as such
     ;; we assume that all remaining nodes have the same
     ;; probability of being visited
