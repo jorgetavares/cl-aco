@@ -47,9 +47,9 @@
 	   unless (aref visited i) 
 	   do (let ((node-probability (aref choice-info (1- (+ nc i)))))
 		(declare (type single-float node-probability))
-		(setf (aref nodes size) i)
-		(setf (aref nodes-probabilities size) node-probability)
-		(incf sum-probabilities node-probability)
+		(setf (aref nodes size) (the node i))
+		(setf (aref nodes-probabilities size) (the single-float node-probability))
+		(incf sum-probabilities (the single-float node-probability))
 		(incf size))))
     )
     ;; pheromones are zero or very close to it, as such
