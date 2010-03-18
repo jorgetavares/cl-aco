@@ -11,6 +11,7 @@
 	   #:safe-copy-colony
 	   #:process-stats
 	   #:as-decision
+	   #:as-decision-opt
 	   #:restart-pheromone-trails-mmas
 	   #:restart-pheromone-trails-mmas-hcf
 	   #:update-trails
@@ -30,6 +31,7 @@
 	   #:branching-factor
 	   #:hcf-conbergence-factor
 	   #:make-parameters
+	   #:parameters-p
 	   #:parameters-n
 	   #:parameters-distances
 	   #:parameters-nearest-neighbors
@@ -50,6 +52,7 @@
 	   #:parameters-restart
 	   #:parameters-restart-iterations
 	   #:make-state
+	   #:state-p
 	   #:state-iterations
 	   #:state-best
 	   #:state-flag
@@ -60,10 +63,12 @@
 	   #:state-bs-update
 	   #:state-cf
 	   #:make-ant
+	   #:ant-p
 	   #:ant-tour-length
 	   #:ant-tour
 	   #:ant-visited
 	   #:make-colony
+	   #:colony-p
 	   #:colony-n-ants
 	   #:colony-ants
 	   #:colony-pheromone
@@ -72,15 +77,11 @@
 	   #:colony-heuristic
 	   #:colony-choice-info
 	   #:make-statistics
+	   #:statistics-p
 	   #:statistics-best-ant
            #:statistics-best-iteration
            #:statistics-restart-ant
            #:statistics-restart-iteration
            #:statistics-restarts
            #:statistics-branching
-            
-	   
 	   ))
-
-  
-  

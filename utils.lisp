@@ -17,7 +17,7 @@
      with new-ants = (make-array n) 
      for i from 0 below n
      do (setf (aref new-ants i)
-	      (safe-copy-ant (aref ants i)))
+	      (copy-ant (aref ants i)))
      finally (return new-ants)))
 
 

@@ -200,7 +200,7 @@
 	(w-rank (make-array w)))
     (loop for i from 0 below w 
        do (setf (aref w-rank i)
-		(safe-copy-ant (aref full-rank i)))
+		(copy-ant (aref full-rank i)))
        finally (return w-rank))))
 
 ;;

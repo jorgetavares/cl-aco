@@ -25,7 +25,7 @@
   (ant-system :mmas)
   (avg-cost 426)
   (pheromone-update #'mmas-pheromone-update)
-  (decision-rule #'as-decision)
+  (decision-rule #'as-decision-opt)
   (eval-tour nil) ;; NOTE: requires generalization
   (lambda 0.05)
   (convergence-function #'branching-factor)
@@ -141,7 +141,8 @@
   (let ((params (if filename 
 		    (funcall problem-reader filename parameters) 
 		    parameters)))
-    (setf (parameters-eval-tour params) cost-function)
+    (when cost-function
+      (setf (parameters-eval-tour params) cost-function))
     (loop for run from 1 to runs 
        collect (config-output-run-aco params output run id))))
 
@@ -211,7 +212,7 @@
      do (when (< (ant-tour-length ant) best)
 	  (setf best (ant-tour-length ant))
 	  (when (< best (ant-tour-length (statistics-best-ant stats)))
-	    (setf (statistics-best-ant stats) (safe-copy-ant ant)
+	    (setf (statistics-best-ant stats) (copy-ant ant)
 		  (statistics-best-iteration stats) (state-iterations state))
 	    (when (member output '(:full :files :screen+files))
 	      (format (second streams) "~a~%" (list 
@@ -220,7 +221,7 @@
 	    (when (eql (parameters-ant-system parameters) :mmas)
 	      (update-trail-limits parameters colony best)))
 	  (when (< best (ant-tour-length (statistics-restart-ant stats)))
-	    (setf (statistics-restart-ant stats) (safe-copy-ant ant)
+	    (setf (statistics-restart-ant stats) (copy-ant ant)
 		  (statistics-restart-iteration stats) (state-iterations state))))
      sum (ant-tour-length ant) into total
      finally (progn

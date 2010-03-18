@@ -10,6 +10,14 @@
 (in-package #:cl-aco-tsp)
 
 ;;;
+;;; handles for the specific problem instances
+;;;
+
+(defparameter eil51 "/Users/jast/workspace/cl-tsplib/instances/eil51.tsp")
+(defparameter burma14 "/Users/jast/workspace/cl-tsplib/instances/burma14.tsp")
+
+
+;;;
 ;;; running aco for TSP
 ;;;
 
@@ -38,10 +46,6 @@
 ;;;
 ;;; problem specific functions and data
 ;;;
-
-(defparameter eil51 "/Users/jast/workspace/cl-tsplib/instances/eil51.tsp")
-(defparameter burma14 "/Users/jast/workspace/cl-tsplib/instances/burma14.tsp")
-
 
 (defun symmetric-tsp (route n distances)
   "Computes the length of a symmetric tsp route."
