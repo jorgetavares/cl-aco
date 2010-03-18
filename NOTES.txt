@@ -1,3 +1,8 @@
+2010/03/18
++ as-decision is semi-optimized.
++ more optimizations should be introduced to improve as-decision.
++ other parts of the code are not a priority now.
+
 2010/03/10
 + Package is being generalized: 
 	1) tsp code is in one file and in separate package

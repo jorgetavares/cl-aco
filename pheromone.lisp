@@ -27,27 +27,29 @@
 (defun update-trail-max-value (parameters cost)
   "Return initial pheromone value according to the Ant System."
   (case (parameters-ant-system parameters)
-    (:mmas (/ 1 (* (parameters-rho parameters) cost)))
-    (:mmas-hcf 1)
-    (otherwise 1)))
+    (:mmas (/ 1.0 (* (parameters-rho parameters) cost)))
+    (:mmas-hcf 1.0)
+    (otherwise 1.0)))
 
 (defun update-trail-min-value (parameters trail-max)
   "Return initial lower bound pheromone value according to the Ant System."
   (case (parameters-ant-system parameters)
-    (:mmas (/ trail-max (* 2 (parameters-n parameters))))
-    (:mmas-hcf 0)
-    (otherwise 1)))
+    (:mmas (/ trail-max (* 2.0 (parameters-n parameters))))
+    (:mmas-hcf 0.0)
+    (otherwise 1.0)))
 
 (defun initial-trail-value (parameters max)
   "Return initial pheromone value according to the Ant System."
   (case (parameters-ant-system parameters)
     (:mmas max)
     (:mmas-hcf 0.5)
-    (otherwise 1)))
+    (otherwise 1.0)))
 
 (defun init-pheromone (n &optional (value 1))
   "Return a fresh pheromone matrix."
-  (make-array `(,(1+ n) ,(1+ n)) :initial-element value))
+  (make-array `(,(1+ n) ,(1+ n)) 
+	      :initial-element value
+	      :element-type 'single-float))
 
 
 ;;;

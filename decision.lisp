@@ -4,7 +4,77 @@
 ;;; decison rules
 ;;;
 
+;; types for as-decision optimization
+(deftype node () 'fixnum)
+
+(deftype array-node () '(simple-array node (*)))
+(deftype array-boolean () '(simple-array boolean (*)))
+
+(deftype float-array () '(simple-array single-float (*)))
+(deftype float-matrix () '(array single-float (* *)))
+
+;;
+;; contains some optimizations but it can still be improved
+;; WARNING: one compiler note still needs to be removed
+;;
+
 (defun as-decision (ant step n choice-info parameters)
+  "Determines an ant next action to be executed (ant system, no candidates list)."
+  (declare (ignore parameters)
+	   (optimize (speed 3) (safety 1))
+	   (type node n)
+	   (type node step)
+	   (type float-matrix choice-info))
+   (let* ((tour (the array-node (ant-tour ant)))
+	 (visited (the array-boolean (ant-visited ant)))
+	 (sum-probabilities 0.0)
+	 (c (aref tour (1- step)))
+	 (nodes (the array-node (make-array n 
+					    :initial-element 0 
+					    :element-type 'node)))
+	  (nodes-probabilities (the float-array
+				 (make-array n 
+					     :initial-element 0.0 
+					     :element-type 'single-float)))
+	  (size 0))
+    (declare (type single-float sum-probabilities))
+    ;; collects all unvisited nodes and respective 
+    ;; probabilities of being picked next
+    (loop 
+       for i from 1 to n
+       unless (aref visited i) 
+       do (let ((node-probability (aref (the float-matrix choice-info) c i)))
+	    (declare (type single-float node-probability))
+	    (setf (aref nodes size) i)
+	    (setf (aref nodes-probabilities size) node-probability)
+	    (incf sum-probabilities node-probability)
+	    (incf size)))
+    ;; pheromones are zero or very close to it, as such
+    ;; we assume that all remaining nodes have the same
+    ;; probability of being visited
+    (when (<= sum-probabilities 0.0)
+      (setf sum-probabilities 1.0)
+      (setf nodes-probabilities (make-array size 
+					    :initial-element (/ 1.0 size)
+					    :element-type 'single-float)))
+    ;; picks next node according to a roulette wheel selection
+    (let* ((r (random sum-probabilities))
+	   (j 0)
+	   (p (aref nodes-probabilities j)))
+      (loop while (< p r)
+	 do (progn
+	      (incf j)
+	      (incf p (aref nodes-probabilities j))))
+      (let ((node  (aref nodes j)))
+	(setf (aref tour step) node)
+	(setf (aref visited node) t)))))
+
+
+;;;
+;;; original version (very slow)
+;;;
+
+(defun as-decision-original (ant step n choice-info parameters)
   "Determines an ant next action to be executed (ant system, no candidates list)."
   (declare (ignore parameters))
   (let* ((tour (ant-tour ant))
@@ -140,42 +210,5 @@
 			v (aref choice-info c j)))))
     (setf (aref tour step) nc)
     (setf (aref visited nc) t)))
-
-
-;;;
-;;; an optimized version of this function (as-decision) is highly required
-;;;
-
-(defun as-decision-opt (ant step n choice-info parameters)
-  "Determines an ant next action to be executed (ant system, no candidates list)."
-  (declare (ignore parameters))
-  (let* ((tour (ant-tour ant))
-	 (visited (ant-visited ant))
-	 (sum-probabilities 0.0)
-	 (c (aref tour (1- step)))
-	 (nodes (make-array n :initial-element 0))
-	 (nodes-probabilities (make-array n :initial-element 0.0))
-	 (size 0))
-    (loop 
-       for i from 1 to n
-       unless (aref visited i) 
-       do (let ((node-probability (aref choice-info c i)))
-	    (setf (aref nodes size) i)
-	    (setf (aref nodes-probabilities size) node-probability)
-	    (incf sum-probabilities node-probability)
-	    (incf size)))
-    (when (<= sum-probabilities 0.0)
-      (setf sum-probabilities 1.0)
-      (setf nodes-probabilities (make-array size :initial-element (/ 1 size))))
-    (let* ((r (random sum-probabilities))
-	   (j 0)
-	   (p (aref nodes-probabilities j)))
-      (loop while (< p r)
-	 do (progn
-	      (incf j)
-	      (incf p (aref nodes-probabilities j))))
-      (let ((node  (aref nodes j)))
-	(setf (aref tour step) node)
-	(setf (aref visited node) t)))))
 
 

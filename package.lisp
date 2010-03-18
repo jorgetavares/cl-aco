@@ -11,7 +11,6 @@
 	   #:safe-copy-colony
 	   #:process-stats
 	   #:as-decision
-	   #:as-decision-opt
 	   #:restart-pheromone-trails-mmas
 	   #:restart-pheromone-trails-mmas-hcf
 	   #:update-trails

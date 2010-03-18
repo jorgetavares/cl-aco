@@ -30,17 +30,21 @@
   
 (defun init-heuristic (n distances)
   "Return a fresh heuristic info matrix."
-  (let ((matrix (make-array `(,(1+ n) ,(1+ n)) :initial-element 0)))
+  (let ((matrix (make-array `(,(1+ n) ,(1+ n)) 
+			    :initial-element 0.0
+			    :element-type 'single-float)))
     (loop for i from 1 to n
        do (loop for j from 1 to n
 	     do (unless (= i j)
 		  (setf (aref matrix i j)
-			(/ 1 (aref distances i j)))))
+			(/ 1.0 (aref distances i j)))))
        finally (return matrix))))
 
 (defun init-choice-info (n pheromone heuristic alpha beta)
   "Return a fresh choice-info matrix."
-  (let ((matrix (make-array `(,(1+ n) ,(1+ n)) :initial-element 0)))
+  (let ((matrix (make-array `(,(1+ n) ,(1+ n)) 
+			    :initial-element 0.0
+			    :element-type 'single-float)))
     (loop for i from 1 to n
        do (loop for j from 1 to n
 	     do (setf (aref matrix i j)
@@ -57,8 +61,12 @@
     (loop for i from 0 below n-ants
 	 do (setf (aref ants i)
 		  (make-ant :tour-length nil
-			    :tour (make-array (+ n 2) :initial-element 0)
-			    :visited (make-array (+ n 2) :initial-element nil)))
+			    :tour (make-array (+ n 2) 
+					      :initial-element 0
+					      :element-type 'fixnum)
+			    :visited (make-array (+ n 2) 
+						 :initial-element nil
+						 :element-type 'boolean)))
        finally (return ants))))
 
 

@@ -25,7 +25,7 @@
   (ant-system :mmas)
   (avg-cost 426)
   (pheromone-update #'mmas-pheromone-update)
-  (decision-rule #'as-decision-opt)
+  (decision-rule #'as-decision)
   (eval-tour nil) ;; NOTE: requires generalization
   (lambda 0.05)
   (convergence-function #'branching-factor)
