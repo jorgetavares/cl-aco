@@ -9,6 +9,7 @@
   :author "Jorge Tavares <jorge.tavares@ieee.org>"  
   :licence "MIT"  
   :components ((:file "package")
+	       (:file "definitions" :depends-on ("package"))
 	       (:file "utils"       :depends-on ("package"))
 	       (:file "init"        :depends-on ("package"))
 	       (:file "pheromone"   :depends-on ("package"))

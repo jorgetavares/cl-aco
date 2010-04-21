@@ -3,6 +3,6 @@
   (:export #:aco-tsp
 	   #:symmetric-tsp 
 	   #:read-problem-data
-	   #:eil51 #:burma14))
+	   #:eil51 #:burma14 #:kroA100 #:d198 #:lin318 #:pcb442))
   
   

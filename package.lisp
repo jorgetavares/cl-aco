@@ -83,4 +83,5 @@
            #:statistics-restart-iteration
            #:statistics-restarts
            #:statistics-branching
+	   #:statistics-pop-avg
 	   ))

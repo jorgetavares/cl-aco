@@ -5,77 +5,6 @@
 (in-package #:cl-aco)
 
 ;;;
-;;; data structures
-;;;
-
-;;
-;; problem and parameters data
-
-(defstruct parameters
-  (n 0)
-  (distances nil)
-  (nearest-neighbors nil)
-  (n-neighbors 20)
-  (n-ants 51)
-  (alpha 1.0)
-  (beta 2.0)
-  (rho 0.05)
-  (max-iterations 2000)
-  (ant-system :mmas)
-  (avg-cost 426)
-  (pheromone-update #'mmas-pheromone-update)
-  (decision-rule #'as-decision)
-  (eval-tour nil) ;; NOTE: requires generalization
-  (lambda 0.05)
-  (convergence-function #'branching-factor)
-  (stagnation-limit 3)
-  (restart t)
-  (restart-iterations 250)
-  )
-
-(defstruct state 
-  (iterations 0)
-  (best nil)
-  (flag 0)
-  (stagnation -1)
-  (current-best 0)
-  (pop-avg 0)
-  (pop-std-dev 0)  
-  (bs-update nil)
-  (cf 0)
-  )
-
-
-;;
-;; representation of ants and ACO data
-
-;; NOTE: the ant structure must be generalized for diferent problems
-(defstruct ant
-  tour-length
-  tour
-  visited
-  )
-
-(defstruct colony
-  n-ants
-  ants
-  pheromone
-  trail-max
-  trail-min
-  heuristic
-  choice-info
-  )
-
-(defstruct statistics
-  best-ant
-  best-iteration
-  restart-ant
-  (restart-iteration 0)
-  (restarts 0)
-  (branching 0)
-  )
-
-;;;
 ;;; ACO run modes
 ;;;
 
@@ -183,7 +112,9 @@
 		(:mmas
 		 (restart-pheromone-trails-mmas parameters colony state stats))
 		(:mmas-hcf
-		 (restart-pheromone-trails-mmas-hcf parameters colony state stats))))
+		 (restart-pheromone-trails-mmas-hcf parameters colony state stats))
+		(otherwise
+		 (restart-pheromone-trails-mmas parameters colony state stats))))
 	    (update-trails parameters colony stats state)
 	    (increment-iteration state)
 	    (output-state output state stats colony streams)))
@@ -225,6 +156,7 @@
      sum (ant-tour-length ant) into total
      finally (progn
 	       (setf (state-pop-avg state) (/ total (colony-n-ants colony)))
+	       (setf (statistics-pop-avg stats) (float (state-pop-avg state)))
 	       (setf (state-pop-std-dev state) (std-dev (state-pop-avg state) colony))
 	       (setf (state-current-best state) best)
 	       )))

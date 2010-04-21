@@ -15,13 +15,18 @@
 
 (defparameter eil51 "/Users/jast/workspace/cl-tsplib/instances/eil51.tsp")
 (defparameter burma14 "/Users/jast/workspace/cl-tsplib/instances/burma14.tsp")
+(defparameter kroA100  "/Users/jast/workspace/cl-tsplib/instances/kroA100.tsp")
+(defparameter d198 "/Users/jast/workspace/cl-tsplib/instances/d198.tsp")
+(defparameter lin318 "/Users/jast/workspace/cl-tsplib/instances/lin318.tsp")
+(defparameter pcb442 "/Users/jast/workspace/cl-tsplib/instances/pcb442.tsp")
+
 
 
 ;;;
 ;;; running aco for TSP
 ;;;
 
-(defun aco-tsp (&key (ant-system :as) (filename eil51) (runs 1) (iterations 100) (output :screen))
+(defun aco-tsp (&key (ant-system :as) (filename eil51) (runs 1) (iterations 10) (output :screen))
   "Launch an ACO system for TSP."
   (case ant-system
     (:as (ant-system :runs runs :iterations iterations :output output 
