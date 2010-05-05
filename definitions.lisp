@@ -62,7 +62,7 @@
 ;;
 ;; representation of ants and ACO data
 
-;; NOTE: the ant structure must be generalized for diferent problems
+;; NOTE: the ant structure must be generalized for different problems
 (defstruct ant
   tour-length 
   tour
@@ -87,5 +87,6 @@
   (restarts 0)
   (branching 0)
   (pop-avg 0)
+  (ants-solutions nil)	
   )
 

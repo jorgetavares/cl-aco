@@ -118,6 +118,9 @@
 	    (update-trails parameters colony stats state)
 	    (increment-iteration state)
 	    (output-state output state stats colony streams)))
+    (setf (statistics-ants-solutions stats)
+	  (loop for ant across (colony-ants colony)
+	     collect (ant-tour-length ant)))
     stats))
 
 

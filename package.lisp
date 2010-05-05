@@ -84,4 +84,5 @@
            #:statistics-restarts
            #:statistics-branching
 	   #:statistics-pop-avg
+	   #:statistics-ants-solutions
 	   ))
