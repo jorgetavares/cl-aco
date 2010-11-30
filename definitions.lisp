@@ -33,17 +33,18 @@
   (alpha 1.0)
   (beta 2.0)
   (rho 0.5)
-  (max-iterations 2000)
+  (max-iterations 1000)
   (ant-system :mmas)
-  (avg-cost 426)
+  (avg-cost 450)
   (pheromone-update #'mmas-pheromone-update)
   (decision-rule #'as-decision)
   (eval-tour nil) ;; NOTE: requires generalization
   (lambda 0.05)
   (convergence-function #'branching-factor)
   (stagnation-limit 3)
-  (restart t)
+  (restart nil)
   (restart-iterations 250)
+  (soas-replacement :always) ;; :always or :best (best value is store in state-soas-best
   )
 
 (defstruct state 
@@ -56,6 +57,7 @@
   (pop-std-dev 0)  
   (bs-update nil)
   (cf 0)
+  (soas-best -1)
   )
 
 
@@ -81,7 +83,7 @@
 
 (defstruct statistics
   best-ant
-  best-iteration
+  (best-iteration 0)
   restart-ant
   (restart-iteration 0)
   (restarts 0)

@@ -20,13 +20,20 @@
 (defparameter lin318 "/Users/jast/workspace/datasets/tsplib/tsp/lin318.tsp")
 (defparameter pcb442 "/Users/jast/workspace/datasets/tsplib/tsp/pcb442.tsp")
 
+;(defparameter eil51 "/home/jast/datasets/tsplib/tsp/eil51.tsp")
+;(defparameter burma14 "/home/jast/datasets/tsplib/tsp/burma14.tsp")
+;(defparameter kroA100  "/home/jast/datasets/tsplib/tsp/kroA100.tsp")
+;(defparameter d198 "/home/jast/datasets/tsplib/tsp/d198.tsp")
+;(defparameter lin318 "/home/jast/datasets/tsplib/tsp/lin318.tsp")
+;(defparameter pcb442 "/home/jast/datasets/tsplib/tsp/pcb442.tsp")
+
 
 
 ;;;
 ;;; running aco for TSP
 ;;;
 
-(defun aco-tsp (&key (ant-system :as) (filename eil51) (runs 1) (iterations 10) (output :screen))
+(defun aco-tsp (&key (ant-system :as) (filename eil51) (runs 1) (iterations 10) (output :screen) (restart nil) (restart-iterations 250) (avg-cost 426) (rho 0.5))
   "Launch an ACO system for TSP."
   (case ant-system
     (:as (ant-system :runs runs :iterations iterations :output output 
@@ -44,7 +51,11 @@
     (:mmas (min-max-ant-system :runs runs :iterations iterations :output output 
 			       :filename filename
 			       :problem-reader #'read-problem-data 
-			       :cost-function #'symmetric-tsp))
+			       :cost-function #'symmetric-tsp
+			       :restart restart
+			       :restart-iterations restart-iterations
+			       :avg-cost avg-cost
+			       :rho rho))
     ))
 
 

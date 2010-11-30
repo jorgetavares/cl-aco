@@ -4,7 +4,7 @@
 ;;; initialize ACO
 ;;;
 
-(defun initialize-colony (parameters)
+(defun initialize-colony (parameters state)
   "Prepare colony data (requires parameters already with problem data."
  (let* ((trail-max (update-trail-max-value parameters (parameters-avg-cost parameters)))
 	(initial-trail (initial-trail-value parameters trail-max))
@@ -13,7 +13,7 @@
 					      (parameters-n parameters))
 			     :pheromone (init-pheromone (parameters-n parameters) initial-trail)
 			     :trail-max trail-max
-			     :trail-min (update-trail-min-value parameters trail-max)
+			     :trail-min (update-trail-min-value parameters state trail-max)
 			     :heuristic (init-heuristic (parameters-n parameters)
 							(parameters-distances parameters)))))
    (setf (colony-choice-info colony)

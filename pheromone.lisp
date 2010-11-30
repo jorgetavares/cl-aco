@@ -17,32 +17,44 @@
 ;;; pheromone setup
 ;;;
 
-(defun update-trail-limits (parameters colony new-cost)
+(defun update-trail-limits (parameters state colony new-cost)
   "Update the values for the trail limits according to a new best tour found."
   (setf (colony-trail-max colony)
 	(update-trail-max-value parameters new-cost))
   (setf (colony-trail-min colony)
-	(update-trail-min-value parameters (colony-trail-max colony))))
+	(update-trail-min-value parameters state (colony-trail-max colony))))
 
 (defun update-trail-max-value (parameters cost)
   "Return initial pheromone value according to the Ant System."
   (case (parameters-ant-system parameters)
     (:mmas (/ 1.0 (* (parameters-rho parameters) cost)))
+    (:mmas-gp (/ 1.0 (* (parameters-rho parameters) cost)))
     (:mmas-hcf 1.0)
+    (:soas 1.0)
     (otherwise 1.0)))
 
-(defun update-trail-min-value (parameters trail-max)
+(defun update-trail-min-value (parameters state trail-max)
   "Return initial lower bound pheromone value according to the Ant System."
   (case (parameters-ant-system parameters)
-    (:mmas (/ trail-max (* 2.0 (parameters-n parameters))))
+    (:mmas (let ((p-x (exp (/ (log 0.05) (parameters-n parameters))))
+		 ;(avg (/ (1+ (parameters-n parameters)) 2)))
+		 (avg (state-stagnation state)))
+	     (* (/ (1- p-x)
+		   (* p-x (1- avg)))
+		trail-max)))
+    (:mmas+ls (/ trail-max (* 2.0 (parameters-n parameters))))
+    (:mmas-gp (/ trail-max (* 2.0 (parameters-n parameters))))
     (:mmas-hcf 0.0)
+    (:soas 1.0)
     (otherwise 1.0)))
 
 (defun initial-trail-value (parameters max)
   "Return initial pheromone value according to the Ant System."
   (case (parameters-ant-system parameters)
     (:mmas max)
+    (:mmas-gp max)
     (:mmas-hcf 0.5)
+    (:soas 1.0)
     (otherwise 1.0)))
 
 (defun init-pheromone (n &optional (value 1))
@@ -63,15 +75,18 @@
 	     (> (- (state-iterations state)
 		   (statistics-restart-iteration stats))
 		(parameters-restart-iterations parameters)))
-    (let ((n (parameters-n parameters))
-	  (max (colony-trail-max colony))
-	  (pheromone (colony-pheromone colony)))
-      (loop for i from 1 to n
-	 do (loop for j from 1 to n 
-	       do (setf (aref pheromone i j) max)))
-      (setf (statistics-restart-ant stats) (make-ant :tour-length 10000000000))
-      (setf (statistics-restart-iteration stats) 0)
-      (incf (statistics-restarts stats)))))
+    (apply-pheromone-restart (parameters-n parameters)
+			     (colony-trail-max colony)
+			     (colony-pheromone colony)
+			     stats)))
+
+(defun apply-pheromone-restart (n max pheromone stats)
+  (loop for i from 1 to n
+     do (loop for j from 1 to n 
+	   do (setf (aref pheromone i j) max)))
+  (setf (statistics-restart-ant stats) (make-ant :tour-length 10000000000))
+  (setf (statistics-restart-iteration stats) 0)
+  (incf (statistics-restarts stats)))
 
 (defun restart-pheromone-trails-mmas-hcf (parameters colony state stats)
   "Re-init the pheromone trails and keeps re-inits the restart-ant."
@@ -205,33 +220,28 @@
 		(copy-ant (aref full-rank i)))
        finally (return w-rank))))
 
-;;
-;; Min-Max ant system
-
+;; max-min
 (defun mmas-pheromone-update (parameters colony stats state)
-  "Mïn-Max Ant System pheromone update method."
- (let* ((ants (colony-ants colony))
-	(n (parameters-n parameters))
-	(pheromone (colony-pheromone colony))
-	(rho (parameters-rho parameters))
-	(heuristic (colony-heuristic colony))
-	(choice-info (colony-choice-info colony))
-	(alpha (parameters-alpha parameters))
-	(beta (parameters-beta parameters))
-	(best-so-far-ant (statistics-best-ant stats)))
-   (evaporate n pheromone rho)
-   (if (change-update-ant parameters state)
-       (let ((current-best-ant (find-best-ant (colony-n-ants colony) ants)))
-	 ;(format t "mmas deposit current best ~%")
-	 (deposit-pheromone current-best-ant n pheromone 1))
-       (progn 
-	 ;(format t "mmas deposit best so far ~%")
-	 (deposit-pheromone best-so-far-ant n pheromone 1)))
-   (verify-pheromone-limits (parameters-n parameters)
-			    (colony-pheromone colony)
-			    (colony-trail-max colony)
-			    (colony-trail-min colony))
-   (update-choice-info n pheromone heuristic choice-info alpha beta)))
+  (let* ((ants (colony-ants colony))
+	 (n (parameters-n parameters))
+	 (pheromone (colony-pheromone colony))
+	 (rho (parameters-rho parameters))
+	 (heuristic (colony-heuristic colony))
+	 (choice-info (colony-choice-info colony))
+	 (alpha (parameters-alpha parameters))
+	 (beta (parameters-beta parameters))
+	 (best-so-far-ant (statistics-best-ant stats)))
+    (evaporate n pheromone rho)
+    (if (change-update-ant parameters state)
+	(let ((current-best-ant (find-best-ant (colony-n-ants colony) ants)))
+	  (deposit-pheromone current-best-ant n pheromone 1))
+	(progn 
+	  (deposit-pheromone best-so-far-ant n pheromone 1)))
+    (verify-pheromone-limits (parameters-n parameters)
+			     (colony-pheromone colony)
+			     (colony-trail-max colony)
+			     (colony-trail-min colony))
+    (update-choice-info n pheromone heuristic choice-info alpha beta)))
 
 (defun change-update-ant (parameters state)
   "Change the ant for update acording to number of iterations. Return t or nil."
@@ -242,6 +252,10 @@
     (or
      (< i q3)
      (> (mod i 50) 0))))
+
+(defun change-update-ant2 (parameters state)
+  (declare (ignore parameters state))
+  t)
 
 (defun verify-pheromone-limits (n pheromone max min)
   "Checks for violations of pheromone limits and updates according to max and min values."
@@ -266,33 +280,33 @@
 ;; MMAS with hyper-cube framework
 
 (defun mmas-hcf-pheromone-update (parameters colony stats state)
-  "Mïn-Max Ant System with Hyper Cube framework pheromone update method."
- (let* ((ants (colony-ants colony))
-	(n (parameters-n parameters))
-	(pheromone (colony-pheromone colony))
-	(rho (parameters-rho parameters))
-	(heuristic (colony-heuristic colony))
-	(choice-info (colony-choice-info colony))
-	(alpha (parameters-alpha parameters))
-	(beta (parameters-beta parameters))
-	(cf (state-cf state))
-	(restart-ant (statistics-restart-ant stats))
-	(best-so-far-ant (statistics-best-ant stats)))
-   (evaporate n pheromone rho)
-   (if (state-bs-update state)
-       (let ((current-ant (find-best-ant (colony-n-ants colony) ants)))
-	 (cond ((< cf 0.04)
-		(deposit-pheromone current-ant n pheromone 1))
-	       ((< cf 0.06)
-		(deposit-pheromone current-ant n pheromone 2/3)
-		(deposit-pheromone restart-ant n pheromone 1/3))
-	       ((< cf 0.08)
-		(deposit-pheromone current-ant n pheromone 1/3)
-		(deposit-pheromone restart-ant n pheromone 2/3))
-	       (t (deposit-pheromone restart-ant n pheromone 1))))
-       (deposit-pheromone best-so-far-ant n pheromone 1))
-   (verify-pheromone-limits (parameters-n parameters)
-			    (colony-pheromone colony)
-			    (colony-trail-max colony)
-			    (colony-trail-min colony))
-   (update-choice-info n pheromone heuristic choice-info alpha beta)))
+  (let* ((ants (colony-ants colony))
+	 (n (parameters-n parameters))
+	 (pheromone (colony-pheromone colony))
+	 (rho (parameters-rho parameters))
+	 (heuristic (colony-heuristic colony))
+	 (choice-info (colony-choice-info colony))
+	 (alpha (parameters-alpha parameters))
+	 (beta (parameters-beta parameters))
+	 (cf (state-cf state))
+	 (restart-ant (statistics-restart-ant stats))
+	 (best-so-far-ant (statistics-best-ant stats)))
+    (evaporate n pheromone rho)
+    (if (state-bs-update state)
+	(let ((current-ant (find-best-ant (colony-n-ants colony) ants)))
+	  (cond ((< cf 0.04)
+		 (deposit-pheromone current-ant n pheromone 1))
+		((< cf 0.06)
+		 (deposit-pheromone current-ant n pheromone 2/3)
+		 (deposit-pheromone restart-ant n pheromone 1/3))
+		((< cf 0.08)
+		 (deposit-pheromone current-ant n pheromone 1/3)
+		 (deposit-pheromone restart-ant n pheromone 2/3))
+		(t (deposit-pheromone restart-ant n pheromone 1))))
+	(deposit-pheromone best-so-far-ant n pheromone 1))
+    (verify-pheromone-limits (parameters-n parameters)
+			     (colony-pheromone colony)
+			     (colony-trail-max colony)
+			     (colony-trail-min colony))
+    (update-choice-info n pheromone heuristic choice-info alpha beta)))
+

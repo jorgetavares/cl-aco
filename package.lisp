@@ -11,6 +11,12 @@
 	   #:safe-copy-colony
 	   #:process-stats
 	   #:as-decision
+	   #:construct-solutions
+	   #:increment-iteration
+	   #:initialize-colony
+	   #:output-state
+	   #:terminate
+	   #:update-statistics
 	   #:restart-pheromone-trails-mmas
 	   #:restart-pheromone-trails-mmas-hcf
 	   #:update-trails
@@ -50,6 +56,7 @@
 	   #:parameters-stagnation-limit
 	   #:parameters-restart
 	   #:parameters-restart-iterations
+	   #:parameters-soas-replacement
 	   #:make-state
 	   #:state-p
 	   #:state-iterations
@@ -61,8 +68,10 @@
 	   #:state-pop-std-dev
 	   #:state-bs-update
 	   #:state-cf
+	   #:state-soas-best
 	   #:make-ant
 	   #:ant-p
+	   #:copy-ant
 	   #:ant-tour-length
 	   #:ant-tour
 	   #:ant-visited
@@ -85,4 +94,5 @@
            #:statistics-branching
 	   #:statistics-pop-avg
 	   #:statistics-ants-solutions
+	   #:apply-pheromone-restart
 	   ))

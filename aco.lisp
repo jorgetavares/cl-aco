@@ -48,14 +48,18 @@
 	     :parameters parameters :runs runs :output output :id "ras")))
 
 (defun min-max-ant-system (&key (runs 1) (iterations 1000) (output :screen) 
-			   filename problem-reader cost-function)
+			   filename problem-reader cost-function
+			   (restart t) (restart-iterations 250) avg-cost rho)
   "Min-Max Ant System standard run."
   (let ((parameters (make-parameters :max-iterations iterations
 				     :ant-system :mmas
 				     :pheromone-update #'mmas-pheromone-update
 				     :decision-rule #'as-decision
 				     :eval-tour cost-function
-				     :restart t)))
+				     :restart restart
+				     :restart-iterations restart-iterations
+				     :avg-cost avg-cost
+				     :rho rho)))
     (run-aco :filename filename :problem-reader problem-reader :cost-function cost-function 
 	     :parameters parameters :runs runs :output output :id "mmas")))
 
@@ -97,11 +101,11 @@
 
 (defun run-single-aco (parameters output streams)
   "Top-level ACO to solve a problem instance."
-  (let ((restart-p (parameters-restart parameters))
-	(colony (initialize-colony parameters))
-	(state (make-state))
-	(stats (make-statistics :best-ant (make-ant :tour-length 10000000000)
-				:restart-ant (make-ant :tour-length 10000000000))))
+  (let* ((restart-p (parameters-restart parameters))
+	 (state (make-state))
+	 (colony (initialize-colony parameters state))
+	 (stats (make-statistics :best-ant (make-ant :tour-length 10000000000)
+				 :restart-ant (make-ant :tour-length 10000000000))))
     (loop until (terminate parameters state)
        do (progn
 	    (construct-solutions parameters colony)
@@ -110,6 +114,8 @@
 	    (when restart-p
 	      (case (parameters-ant-system parameters)
 		(:mmas
+		 (restart-pheromone-trails-mmas parameters colony state stats))
+		(:mmas-gp
 		 (restart-pheromone-trails-mmas parameters colony state stats))
 		(:mmas-hcf
 		 (restart-pheromone-trails-mmas-hcf parameters colony state stats))
@@ -151,8 +157,9 @@
 	      (format (second streams) "~a~%" (list 
 					       (state-iterations state) 
 					       (statistics-best-ant stats))))
-	    (when (eql (parameters-ant-system parameters) :mmas)
-	      (update-trail-limits parameters colony best)))
+	    (when (or (eql (parameters-ant-system parameters) :mmas)
+		      (eql (parameters-ant-system parameters) :mmas-gp))
+	      (update-trail-limits parameters state colony best)))
 	  (when (< best (ant-tour-length (statistics-restart-ant stats)))
 	    (setf (statistics-restart-ant stats) (copy-ant ant)
 		  (statistics-restart-iteration stats) (state-iterations state))))
