@@ -39,15 +39,21 @@
     (:as (ant-system :runs runs :iterations iterations :output output 
 		     :filename filename
 		     :problem-reader #'read-problem-data 
-		     :cost-function #'symmetric-tsp))
+		     :cost-function #'symmetric-tsp
+		     :rho rho
+		     :opt :minimization))
     (:eas (elite-ant-system :runs runs :iterations iterations :output output 
 			    :filename filename
 			    :problem-reader #'read-problem-data 
-			    :cost-function #'symmetric-tsp))
+			    :cost-function #'symmetric-tsp
+			    :rho rho
+			    :opt :minimization))
     (:ras  (rank-ant-system :runs runs :iterations iterations :output output 
 			    :filename filename
 			    :problem-reader #'read-problem-data
-			    :cost-function #'symmetric-tsp))
+			    :cost-function #'symmetric-tsp
+			    :rho rho
+			    :opt :minimization))
     (:mmas (min-max-ant-system :runs runs :iterations iterations :output output 
 			       :filename filename
 			       :problem-reader #'read-problem-data 
@@ -55,9 +61,9 @@
 			       :restart restart
 			       :restart-iterations restart-iterations
 			       :avg-cost avg-cost
-			       :rho rho))
-    ))
-
+			       :rho rho
+			       :opt :minimization
+			       :mmas :mmas))))
 
 ;;;
 ;;; problem specific functions and data

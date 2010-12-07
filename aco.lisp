@@ -12,54 +12,61 @@
 ;; run by Ant System
 
 (defun ant-system (&key (runs 1) (iterations 1000) (output :screen) 
-		   filename problem-reader cost-function)
+		   filename problem-reader cost-function rho opt)
   "Ant System standard run."
   (let ((parameters (make-parameters :max-iterations iterations
 				     :ant-system :as
 				     :pheromone-update #'as-pheromone-update
 				     :decision-rule #'as-decision
 				     :eval-tour cost-function
-				     :restart nil)))
+				     :restart nil
+				     :rho rho
+				     :optimization opt)))
     (run-aco :filename filename :problem-reader problem-reader :cost-function cost-function 
 	     :parameters parameters :runs runs :output output :id "as")))
 
 (defun elite-ant-system (&key (runs 1) (iterations 1000) (output :screen) 
-			 filename problem-reader cost-function)
+			 filename problem-reader cost-function rho opt)
   "Elite Ant System standard run."
   (let ((parameters (make-parameters :max-iterations iterations
 				     :ant-system :eas
 				     :pheromone-update #'eas-pheromone-update
 				     :decision-rule #'as-decision
 				     :eval-tour cost-function
-				     :restart nil)))
+				     :restart nil
+				     :rho rho
+				     :optimization opt)))
     (run-aco :filename filename :problem-reader problem-reader :cost-function cost-function 
 	     :parameters parameters :runs runs :output output :id "eas")))
 
 (defun rank-ant-system (&key (runs 1) (iterations 1000) (output :screen) 
-			filename problem-reader cost-function)
+			filename problem-reader cost-function rho opt)
   "Rank-based Ant System standard run."
   (let ((parameters (make-parameters :max-iterations iterations
 				     :ant-system :ras
 				     :pheromone-update #'rank-pheromone-update
 				     :decision-rule #'as-decision
 				     :eval-tour cost-function
-				     :restart nil)))
+				     :restart nil
+				     :rho rho
+				     :optimization opt)))
     (run-aco :filename filename :problem-reader problem-reader :cost-function cost-function 
 	     :parameters parameters :runs runs :output output :id "ras")))
 
 (defun min-max-ant-system (&key (runs 1) (iterations 1000) (output :screen) 
 			   filename problem-reader cost-function
-			   (restart t) (restart-iterations 250) avg-cost rho)
+			   (restart t) (restart-iterations 250) avg-cost rho opt mmas)
   "Min-Max Ant System standard run."
   (let ((parameters (make-parameters :max-iterations iterations
-				     :ant-system :mmas
+				     :ant-system mmas
 				     :pheromone-update #'mmas-pheromone-update
 				     :decision-rule #'as-decision
 				     :eval-tour cost-function
 				     :restart restart
 				     :restart-iterations restart-iterations
 				     :avg-cost avg-cost
-				     :rho rho)))
+				     :rho rho
+				     :optimization opt)))
     (run-aco :filename filename :problem-reader problem-reader :cost-function cost-function 
 	     :parameters parameters :runs runs :output output :id "mmas")))
 
@@ -104,23 +111,30 @@
   (let* ((restart-p (parameters-restart parameters))
 	 (state (make-state))
 	 (colony (initialize-colony parameters state))
-	 (stats (make-statistics :best-ant (make-ant :tour-length 10000000000)
-				 :restart-ant (make-ant :tour-length 10000000000))))
+	 (optimization (parameters-optimization parameters))
+	 (worst (if (eql optimization :minimization)
+		    most-positive-fixnum
+		    most-negative-fixnum))
+	 (cmp (if (eql optimization :minimization) #'< #'>))
+	 (stats (make-statistics :best-ant (make-ant :tour-length worst)
+				 :restart-ant (make-ant :tour-length worst))))
     (loop until (terminate parameters state)
        do (progn
 	    (construct-solutions parameters colony)
-	    (update-statistics parameters colony stats state output streams)
+	    (update-statistics parameters colony stats state output streams worst cmp)
 	    (update-convergence-factor parameters colony state stats)
 	    (when restart-p
 	      (case (parameters-ant-system parameters)
 		(:mmas
-		 (restart-pheromone-trails-mmas parameters colony state stats))
+		 (restart-pheromone-trails-mmas parameters colony state stats worst))
+		(:mmas-mkp
+		 (restart-pheromone-trails-mmas parameters colony state stats worst))
 		(:mmas-gp
-		 (restart-pheromone-trails-mmas parameters colony state stats))
+		 (restart-pheromone-trails-mmas parameters colony state stats worst))
 		(:mmas-hcf
 		 (restart-pheromone-trails-mmas-hcf parameters colony state stats))
 		(otherwise
-		 (restart-pheromone-trails-mmas parameters colony state stats))))
+		 (restart-pheromone-trails-mmas parameters colony state stats worst))))
 	    (update-trails parameters colony stats state)
 	    (increment-iteration state)
 	    (output-state output state stats colony streams)))
@@ -144,13 +158,13 @@
   "Increments by step the number of iterations."
   (incf (state-iterations state) step))
 
-(defun update-statistics (parameters colony stats state output streams)
+(defun update-statistics (parameters colony stats state output streams worst cmp)
   "Update all the ACO stats."
-  (loop with best = 10000000000 
+  (loop with best = worst
      for ant across (colony-ants colony)
-     do (when (< (ant-tour-length ant) best)
+     do (when (funcall cmp (ant-tour-length ant) best)
 	  (setf best (ant-tour-length ant))
-	  (when (< best (ant-tour-length (statistics-best-ant stats)))
+	  (when (funcall cmp best (ant-tour-length (statistics-best-ant stats)))
 	    (setf (statistics-best-ant stats) (copy-ant ant)
 		  (statistics-best-iteration stats) (state-iterations state))
 	    (when (member output '(:full :files :screen+files))
@@ -158,9 +172,10 @@
 					       (state-iterations state) 
 					       (statistics-best-ant stats))))
 	    (when (or (eql (parameters-ant-system parameters) :mmas)
-		      (eql (parameters-ant-system parameters) :mmas-gp))
+		      (eql (parameters-ant-system parameters) :mmas-gp)
+		      (eql (parameters-ant-system parameters) :mmas-mkp))
 	      (update-trail-limits parameters state colony best)))
-	  (when (< best (ant-tour-length (statistics-restart-ant stats)))
+	  (when (funcall cmp best (ant-tour-length (statistics-restart-ant stats)))
 	    (setf (statistics-restart-ant stats) (copy-ant ant)
 		  (statistics-restart-iteration stats) (state-iterations state))))
      sum (ant-tour-length ant) into total

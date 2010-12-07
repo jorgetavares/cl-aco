@@ -57,6 +57,7 @@
 	   #:parameters-restart
 	   #:parameters-restart-iterations
 	   #:parameters-soas-replacement
+	   #:parameters-optimization
 	   #:make-state
 	   #:state-p
 	   #:state-iterations

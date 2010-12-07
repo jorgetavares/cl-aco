@@ -31,6 +31,7 @@
     (:mmas-gp (/ 1.0 (* (parameters-rho parameters) cost)))
     (:mmas-hcf 1.0)
     (:soas 1.0)
+    (:mmas-mkp 1.0)
     (otherwise 1.0)))
 
 (defun update-trail-min-value (parameters state trail-max)
@@ -46,6 +47,7 @@
     (:mmas-gp (/ trail-max (* 2.0 (parameters-n parameters))))
     (:mmas-hcf 0.0)
     (:soas 1.0)
+    (:mmas-mkp 0.01)
     (otherwise 1.0)))
 
 (defun initial-trail-value (parameters max)
@@ -55,6 +57,7 @@
     (:mmas-gp max)
     (:mmas-hcf 0.5)
     (:soas 1.0)
+    (:mmas-mkp max)
     (otherwise 1.0)))
 
 (defun init-pheromone (n &optional (value 1))
@@ -68,7 +71,7 @@
 ;;; pheromone restart
 ;;;
 
-(defun restart-pheromone-trails-mmas (parameters colony state stats)
+(defun restart-pheromone-trails-mmas (parameters colony state stats worst)
   "Re-init the pheromone trails and keeps re-inits the restart-ant."
   (when (and (< (state-stagnation state)
 		(parameters-stagnation-limit parameters))
@@ -78,13 +81,13 @@
     (apply-pheromone-restart (parameters-n parameters)
 			     (colony-trail-max colony)
 			     (colony-pheromone colony)
-			     stats)))
+			     stats worst)))
 
-(defun apply-pheromone-restart (n max pheromone stats)
+(defun apply-pheromone-restart (n max pheromone stats worst)
   (loop for i from 1 to n
      do (loop for j from 1 to n 
 	   do (setf (aref pheromone i j) max)))
-  (setf (statistics-restart-ant stats) (make-ant :tour-length 10000000000))
+  (setf (statistics-restart-ant stats) (make-ant :tour-length worst))
   (setf (statistics-restart-iteration stats) 0)
   (incf (statistics-restarts stats)))
 
