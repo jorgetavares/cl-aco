@@ -47,7 +47,7 @@
     (:mmas-gp (/ trail-max (* 2.0 (parameters-n parameters))))
     (:mmas-hcf 0.0)
     (:soas 1.0)
-    (:mmas-mkp 0.01)
+    (:mmas-mkp 0.0001)
     (otherwise 1.0)))
 
 (defun initial-trail-value (parameters max)
@@ -57,7 +57,7 @@
     (:mmas-gp max)
     (:mmas-hcf 0.5)
     (:soas 1.0)
-    (:mmas-mkp max)
+    (:mmas-mkp 0.5)
     (otherwise 1.0)))
 
 (defun init-pheromone (n &optional (value 1))

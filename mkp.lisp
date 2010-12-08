@@ -1,5 +1,5 @@
 ;;;;
-;;;; MKP for TSP
+;;;; ACO for MKP
 ;;;; - specific code for MKP using :cl-aco 
 ;;;; - NOTE: at this point, :cl-aco is directly connected to 
 ;;;;   the TSP problem and is not suficient generalized to be 
@@ -29,6 +29,16 @@
 ;;;
 ;;; running aco for MKP
 ;;;
+
+(defun deposit-pheromone (ant n pheromone weight)
+  "Deposit pheromone in the trail according to AS method."
+  (let ((delta (*  weight (/ 1 (ant-tour-length ant))))) ;; new form
+    (loop for i from 1 to n
+       do (let* ((j (aref (ant-tour ant) i))
+		 (l (aref (ant-tour ant) (1+ i)))
+		 (value (+ (aref pheromone j l) delta)))
+	    (setf (aref pheromone j l) value
+		  (aref pheromone l j) value)))))
 
 (defun aco-mkp (&key 
 		(ant-system :as) (filename *ccp01*) (type :ccp) (runs 1) (iterations 10) 

@@ -41,7 +41,7 @@
   (eval-tour nil) ;; NOTE: requires generalization
   (lambda 0.05)
   (convergence-function #'branching-factor)
-  (stagnation-limit 40)
+  (stagnation-limit 3)
   (restart nil)
   (restart-iterations 250)
   (soas-replacement :always) ;; :always or :best (best value is store in state-soas-best
