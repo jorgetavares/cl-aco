@@ -63,7 +63,7 @@
 			    :cost-function #'mkp-fitness
 			    :rho rho
 			    :opt :maximization))
-    (:mmas (min-max-ant-system :runs runs :iterations iterations :output output 
+    (:mmas (max-min-ant-system :runs runs :iterations iterations :output output 
 			       :filename filename
 			       :problem-reader (make-reader type) 
 			       :cost-function #'mkp-fitness
@@ -72,7 +72,7 @@
 			       :avg-cost avg-cost
 			       :rho rho
 			       :opt :maximization
-			       :mmas :mmas-mkp))))
+			       :mmas :mmas))))
 
 ;;;
 ;;; problem specific functions and data

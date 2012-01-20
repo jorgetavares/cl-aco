@@ -45,12 +45,14 @@
    (let ((matrix (make-array (* n n) 
 			    :initial-element 0.0
 			    :element-type 'single-float)))
-    (loop for i from 1 to n
-       do (loop for j from 1 to n
-	     do (setf (aref matrix (1- (+ (- (* n i) n) j)))
-		      (* (expt (aref pheromone i j) alpha) 
-			 (expt (aref heuristic i j) beta))))
-       finally (return matrix))))
+     (loop for i from 1 to n
+	do (loop for j from 1 to n
+	      do (setf (aref matrix (1- (+ (- (* n i) n) j)))
+		       (* (expt (aref pheromone i j) alpha) 
+			  (if (> beta 0.0)
+			      (expt (aref heuristic i j) beta)
+			      1.0)))))
+     matrix))
 
 
 ;;

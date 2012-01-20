@@ -10,30 +10,11 @@
 (in-package #:cl-aco-tsp)
 
 ;;;
-;;; handles for the specific problem instances
-;;;
-
-(defparameter eil51 "/Users/jast/workspace/datasets/tsplib/tsp/eil51.tsp")
-(defparameter burma14 "/Users/jast/workspace/datasets/tsplib/tsp/burma14.tsp")
-(defparameter kroA100  "/Users/jast/workspace/datasets/tsplib/tsp/kroA100.tsp")
-(defparameter d198 "/Users/jast/workspace/datasets/tsplib/tsp/d198.tsp")
-(defparameter lin318 "/Users/jast/workspace/datasets/tsplib/tsp/lin318.tsp")
-(defparameter pcb442 "/Users/jast/workspace/datasets/tsplib/tsp/pcb442.tsp")
-
-;(defparameter eil51 "/home/jast/datasets/tsplib/tsp/eil51.tsp")
-;(defparameter burma14 "/home/jast/datasets/tsplib/tsp/burma14.tsp")
-;(defparameter kroA100  "/home/jast/datasets/tsplib/tsp/kroA100.tsp")
-;(defparameter d198 "/home/jast/datasets/tsplib/tsp/d198.tsp")
-;(defparameter lin318 "/home/jast/datasets/tsplib/tsp/lin318.tsp")
-;(defparameter pcb442 "/home/jast/datasets/tsplib/tsp/pcb442.tsp")
-
-
-
-;;;
 ;;; running aco for TSP
 ;;;
 
-(defun aco-tsp (&key (ant-system :as) (filename eil51) (runs 1) (iterations 10) (output :screen) (restart nil) (restart-iterations 250) (avg-cost 426) (rho 0.5))
+(defun aco-tsp (&key (ant-system :as) (filename cl-tsplib:*eil51*) (runs 1) (iterations 10) (output :screen) (restart nil)
+		(restart-iterations 250) (avg-cost 426) (rho 0.5) n-ants (ls nil) (ls-fn #'2-opt-tsp) (id "acotsp"))
   "Launch an ACO system for TSP."
   (case ant-system
     (:as (ant-system :runs runs :iterations iterations :output output 
@@ -41,20 +22,32 @@
 		     :problem-reader #'read-problem-data 
 		     :cost-function #'symmetric-tsp
 		     :rho rho
-		     :opt :minimization))
+		     :opt :minimization
+		     :n-ants (if n-ants n-ants 0)
+		     :ls ls
+		     :ls-fn ls-fn
+		     :id id))
     (:eas (elite-ant-system :runs runs :iterations iterations :output output 
 			    :filename filename
 			    :problem-reader #'read-problem-data 
 			    :cost-function #'symmetric-tsp
 			    :rho rho
-			    :opt :minimization))
+			    :opt :minimization
+			    :n-ants (if n-ants n-ants 0)
+			    :ls ls
+			    :ls-fn ls-fn
+			    :id id))
     (:ras  (rank-ant-system :runs runs :iterations iterations :output output 
 			    :filename filename
 			    :problem-reader #'read-problem-data
 			    :cost-function #'symmetric-tsp
 			    :rho rho
-			    :opt :minimization))
-    (:mmas (min-max-ant-system :runs runs :iterations iterations :output output 
+			    :opt :minimization
+			    :n-ants (if n-ants n-ants 0)
+			    :ls ls
+			    :ls-fn ls-fn
+			    :id id))
+    (:mmas (max-min-ant-system :runs runs :iterations iterations :output output 
 			       :filename filename
 			       :problem-reader #'read-problem-data 
 			       :cost-function #'symmetric-tsp
@@ -63,7 +56,12 @@
 			       :avg-cost avg-cost
 			       :rho rho
 			       :opt :minimization
-			       :mmas :mmas))))
+			       :mmas :mmas
+			       :scheduler #'cl-aco::change-update-ant
+			       :n-ants (if n-ants n-ants 0)
+			       :ls ls
+			       :ls-fn ls-fn
+			       :id id))))
 
 ;;;
 ;;; problem specific functions and data
@@ -76,6 +74,7 @@
      for j from 2 to (1+ n)
      sum (aref distances (aref route i) (aref route j))))
 
+
 ;;;
 ;;; init problem parameters for TSP
 ;;; 
@@ -87,6 +86,8 @@
       (setf parameters (make-parameters)))
     (setf (parameters-n parameters)
 	  (cl-tsplib:problem-instance-dimension tsp-instance))
+    (when (zerop (parameters-n-ants parameters))
+      (setf (parameters-n-ants parameters) (cl-tsplib:problem-instance-dimension tsp-instance)))
     (setf (parameters-distances parameters)
 	  (cl-tsplib:problem-instance-distance-matrix tsp-instance))
     (setf (parameters-nearest-neighbors parameters)
@@ -95,6 +96,37 @@
 					    (parameters-n-neighbors parameters)))
     parameters))
 
+;;;
+;;; local search
+;;;
+
+
+(defun 2-opt-tsp (solution parameters)
+  (let ((size (parameters-n parameters))
+	(distances (parameters-distances parameters))
+	(done nil))
+    (loop 
+       for k from 1 to size
+       until done
+       do (progn
+	    (setf done t)
+	    (loop for i from 1 to size 
+	       do (loop for j from (+ 2 i) to size
+		     do (let ((i+1 (mod (1+ i) size))
+			      (j+1 (mod (1+ j) size)))
+			  (let ((node-i (aref solution i))
+				(node-j (aref solution j))
+				(node-i+1 (aref solution i+1))
+				(node-j+1 (aref solution j+1)))
+			    (when (> (+ (aref distances node-i node-i+1) 
+					(aref distances node-j node-j+1))
+				     (+ (aref distances node-i node-j)
+					(aref distances node-i+1 node-j+1)))
+			      (let ((tmp (aref solution i+1)))
+				(setf (aref solution i+1) (aref solution j))
+				(setf (aref solution j) tmp)
+				(reverse-2-opt solution (+ i 2) (- j 1) size)
+				(setf done nil)))))))))))
 
 ;;;
 ;;; utils

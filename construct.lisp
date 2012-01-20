@@ -14,6 +14,8 @@
     (construct-tour n ants step 
 		    (colony-choice-info colony)
 		    (parameters-decision-rule parameters) parameters)
+    (when (parameters-local-search parameters)
+      (apply-local-search (parameters-local-search-method parameters) parameters colony))
     (compute-tour-length n ants 
 			 (parameters-eval-tour parameters)
 			 (parameters-distances parameters))))

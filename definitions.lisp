@@ -28,12 +28,12 @@
   (n 0)
   (distances nil)
   (nearest-neighbors nil)
-  (n-neighbors 20)
-  (n-ants 51)
+  (n-neighbors 0)
+  (n-ants 0)
   (alpha 1.0)
   (beta 2.0)
   (rho 0.5)
-  (max-iterations 1000)
+  (max-iterations 100)
   (ant-system :mmas)
   (avg-cost 450)
   (pheromone-update #'mmas-pheromone-update)
@@ -41,11 +41,15 @@
   (eval-tour nil) ;; NOTE: requires generalization
   (lambda 0.05)
   (convergence-function #'branching-factor)
-  (stagnation-limit 3)
+  (stagnation-limit 5) ;; used to be 3!
   (restart nil)
   (restart-iterations 250)
-  (soas-replacement :always) ;; :always or :best (best value is store in state-soas-best
+  (restart-iterations-self 20)
+  (restart-fn nil) 
   (optimization :minimization)
+  (scheduler #'change-update-ant)
+  (local-search nil)
+  (local-search-method nil)
   )
 
 (defstruct state 
@@ -58,7 +62,7 @@
   (pop-std-dev 0)  
   (bs-update nil)
   (cf 0)
-  (soas-best -1)
+  (self-best -1)
   )
 
 
@@ -87,7 +91,9 @@
   (best-iteration 0)
   restart-ant
   (restart-iteration 0)
+  (restart-iteration-self 0)
   (restarts 0)
+  (self-restarts 0)
   (branching 0)
   (pop-avg 0)
   (ants-solutions nil)	

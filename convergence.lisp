@@ -9,10 +9,7 @@
   (setf (state-stagnation state)
 	(funcall (parameters-convergence-function parameters) state colony parameters))
   (setf (statistics-branching stats)
-	(float (branching-factor state colony parameters)))
-  (when (eql :mmas-hcf (parameters-ant-system parameters))
-    (setf (state-cf state)
-	  (hcf-convergence-factor state colony parameters))))
+	(float (branching-factor state colony parameters))))
 
 (defun std-dev (avg-cost colony)
   "Standard deviation of the colony solution cost."
@@ -50,15 +47,3 @@
        sum (aref branches i) into total
        finally (return (/ total n)))))
   
-(defun hcf-convergence-factor (state colony parameters)
-  "As in the C.Blum Beam-ACO paper for TSPTW."
-  (declare (ignore state))
-  (let ((max (colony-trail-max colony))
-	(min (colony-trail-min colony))
-	(n (parameters-n parameters))
-	(pheromone (colony-pheromone colony)))
-    (* 2 (- ( / (loop for i from 1 to n
-		   sum (loop for j from 1 to n 
-			  sum (let ((value (aref pheromone i j)))
-				(max (- max value) (- value min)))))
-		(* (* n n) (- max min))) 0.5))))

@@ -3,7 +3,7 @@
   (:export #:ant-system
 	   #:elite-ant-system
 	   #:rank-ant-system
-	   #:min-max-ant-system
+	   #:max-min-ant-system
 	   #:run-aco
 	   #:config-output-run-aco
 	   #:run-single-aco
@@ -11,6 +11,8 @@
 	   #:safe-copy-colony
 	   #:process-stats
 	   #:as-decision
+	   #:as-decision-random
+	   #:as-q-decision
 	   #:construct-solutions
 	   #:increment-iteration
 	   #:initialize-colony
@@ -56,8 +58,12 @@
 	   #:parameters-stagnation-limit
 	   #:parameters-restart
 	   #:parameters-restart-iterations
-	   #:parameters-soas-replacement
+	   #:parameters-restart-iterations-self
 	   #:parameters-optimization
+	   #:parameters-scheduler
+	   #:parameters-local-search
+	   #:parameters-local-search-method
+	   #:parameters-restart-fn
 	   #:make-state
 	   #:state-p
 	   #:state-iterations
@@ -69,7 +75,7 @@
 	   #:state-pop-std-dev
 	   #:state-bs-update
 	   #:state-cf
-	   #:state-soas-best
+	   #:state-self-best
 	   #:make-ant
 	   #:ant-p
 	   #:copy-ant
@@ -91,9 +97,23 @@
            #:statistics-best-iteration
            #:statistics-restart-ant
            #:statistics-restart-iteration
+	   #:statistics-restart-iteration-self
            #:statistics-restarts
+	   #:statistics-self-restarts
            #:statistics-branching
 	   #:statistics-pop-avg
 	   #:statistics-ants-solutions
 	   #:apply-pheromone-restart
+	   #:apply-local-search
+	   #:reverse-2-opt
+	   #:init-choice-info
+	   #:init-heuristic
+	   #:init-pheromone
+	   #:update-trail-max-value
+	   #:update-trail-min-value
+	   #:empty-ants-memory
+	   #:assign-initial-city
+	   #:compute-tour-length
+	   #:init-ants
+	   #:update-choice-info-at
 	   ))

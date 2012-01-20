@@ -8,8 +8,8 @@
 ;;;;   :as       - Ant System (original and most simple AS)
 ;;;;   :eas      - Elit Ant System
 ;;;;   :ras      - Rank-based Ant System
-;;;;   :mmas     - Min-Max Ant System
-;;;;   :mmas-hcf - Min-Max Ant System with Hyper-Cube Framework 
+;;;;   :mmas     - Max-Min Ant System
+;;;;   :mmas-hcf - Max-Min Ant System with Hyper-Cube Framework 
 ;;;;
 
 
@@ -19,48 +19,58 @@
 
 (defun update-trail-limits (parameters state colony new-cost)
   "Update the values for the trail limits according to a new best tour found."
-  (setf (colony-trail-max colony)
-	(update-trail-max-value parameters new-cost))
-  (setf (colony-trail-min colony)
-	(update-trail-min-value parameters state (colony-trail-max colony))))
+  (let* ((old-max (colony-trail-max colony))
+	 (new-max (update-trail-max-value parameters new-cost))
+	 (new-min (update-trail-min-value parameters state old-max)))
+    (when (> new-min new-max)
+      (setf new-max new-min))
+    (setf (colony-trail-max colony) new-max)
+    (setf (colony-trail-min colony) new-min)))
+
 
 (defun update-trail-max-value (parameters cost)
   "Return initial pheromone value according to the Ant System."
   (case (parameters-ant-system parameters)
     (:mmas (/ 1.0 (* (parameters-rho parameters) cost)))
-    (:mmas-gp (/ 1.0 (* (parameters-rho parameters) cost)))
-    (:mmas-hcf 1.0)
-    (:soas 1.0)
-    (:mmas-mkp 1.0)
+    (:self (/ 1.0 (* (parameters-rho parameters) cost)))
     (otherwise 1.0)))
 
 (defun update-trail-min-value (parameters state trail-max)
   "Return initial lower bound pheromone value according to the Ant System."
+  ;(declare (ignore state))
   (case (parameters-ant-system parameters)
+    ;; reverted to previous formula. The 2nd drastically worsen the results (see below)
     (:mmas (let ((p-x (exp (/ (log 0.05) (parameters-n parameters))))
-		 ;(avg (/ (1+ (parameters-n parameters)) 2)))
 		 (avg (state-stagnation state)))
 	     (* (/ (1- p-x)
 		   (* p-x (1- avg)))
 		trail-max)))
-    (:mmas+ls (/ trail-max (* 2.0 (parameters-n parameters))))
-    (:mmas-gp (/ trail-max (* 2.0 (parameters-n parameters))))
-    (:mmas-hcf 0.0)
-    (:soas 1.0)
-    (:mmas-mkp 0.0001)
+    (:self (let ((p-x (exp (/ (log 0.05) (parameters-n parameters))))
+		 (avg (state-stagnation state)))
+	     (* (/ (1- p-x)
+		   (* p-x (1- avg)))
+		trail-max)))
     (otherwise 1.0)))
+
+;;; makes results worse on std mmas (see above)
+; (let ((new-min 
+;	(if (parameters-local-search parameters)
+;	    (/ trail-max (* 2.0 (parameters-n parameters)))
+;	    (let* ((p-x (exp (/ (log 0.05) (parameters-n parameters))))
+;		   (avg (/ (1+ (parameters-n parameters)) 2)))
+;	      (* (/ (1- p-x) (* p-x (1- avg))) trail-max)))))
+;  (if (> new-min 0.0) new-min 0.0005)))
+;;;
+
 
 (defun initial-trail-value (parameters max)
   "Return initial pheromone value according to the Ant System."
   (case (parameters-ant-system parameters)
     (:mmas max)
-    (:mmas-gp max)
-    (:mmas-hcf 0.5)
-    (:soas 1.0)
-    (:mmas-mkp 0.5)
+    (:self max)
     (otherwise 1.0)))
 
-(defun init-pheromone (n &optional (value 1))
+(defun init-pheromone (n &optional (value 1.0))
   "Return a fresh pheromone matrix."
   (make-array `(,(1+ n) ,(1+ n)) 
 	      :initial-element value
@@ -81,32 +91,20 @@
     (apply-pheromone-restart (parameters-n parameters)
 			     (colony-trail-max colony)
 			     (colony-pheromone colony)
-			     stats worst)))
+			     stats worst (state-iterations state) :pheromone)))
 
-(defun apply-pheromone-restart (n max pheromone stats worst)
+(defun apply-pheromone-restart (n max pheromone stats worst iteration type)
   (loop for i from 1 to n
-     do (loop for j from 1 to n 
-	   do (setf (aref pheromone i j) max)))
+	do (loop for j from 1 to n 
+		 do (setf (aref pheromone i j) max)))
   (setf (statistics-restart-ant stats) (make-ant :tour-length worst))
-  (setf (statistics-restart-iteration stats) 0)
-  (incf (statistics-restarts stats)))
-
-(defun restart-pheromone-trails-mmas-hcf (parameters colony state stats)
-  "Re-init the pheromone trails and keeps re-inits the restart-ant."
-  (if (and (state-bs-update state) 
-	   (> (state-cf state) 0.99))
-      (let ((n (parameters-n parameters))
-	    (pheromone (colony-pheromone colony)))
-	(loop for i from 1 to n
-	   do (loop for j from 1 to n 
-		 do (setf (aref pheromone i j) 0.5)))
-	(setf (statistics-restart-ant stats) 
-	      (make-ant :tour-length 10000000000))
-	(setf (statistics-restart-iteration stats) 0)
-	(incf (statistics-restarts stats))
-	(setf (state-bs-update state) nil))
-      (when (> (state-cf state) 0.99)
-	(setf (state-bs-update state) t))))
+  (if (eql type :pheromone) 
+      (progn
+	(setf (statistics-restart-iteration stats) iteration)
+	(incf (statistics-restarts stats)))
+      (progn
+	(setf (statistics-restart-iteration-self stats) iteration)
+	(incf (statistics-self-restarts stats)))))
 
 
 ;;;
@@ -145,8 +143,20 @@
   (loop for i from 1 to n
      do (loop for j from 1 to n
 	   do (setf (aref choice-info (1- (+ (- (* n i) n) j)))
-		    (* (expt (aref pheromone i j) alpha) 
-		       (expt (aref heuristic i j) beta))))))
+		    (* (expt (aref pheromone i j) alpha)
+		       (if (> beta 0.0)
+			   (expt (aref heuristic i j) beta)
+			   1.0))))))
+
+(defun update-choice-info-at (n pheromone heuristic choice-info alpha beta i j)
+  "Updates the matrix with the pheromone and heuristic combined info."
+  (let ((value (* (expt (aref pheromone i j) alpha)
+		  (if (> beta 0.0)
+		      (expt (aref heuristic i j) beta)
+		      1.0))))
+    (setf (aref choice-info (1- (+ (- (* n j) n) i))) value)
+    (setf (aref choice-info (1- (+ (- (* n i) n) j))) value)))
+    
 
 ;;
 ;; ant system
@@ -235,7 +245,7 @@
 	 (beta (parameters-beta parameters))
 	 (best-so-far-ant (statistics-best-ant stats)))
     (evaporate n pheromone rho)
-    (if (change-update-ant parameters state)
+    (if (funcall (parameters-scheduler parameters) parameters state)
 	(let ((current-best-ant (find-best-ant (colony-n-ants colony) ants)))
 	  (deposit-pheromone current-best-ant n pheromone 1))
 	(progn 
@@ -256,10 +266,6 @@
      (< i q3)
      (> (mod i 50) 0))))
 
-(defun change-update-ant2 (parameters state)
-  (declare (ignore parameters state))
-  t)
-
 (defun verify-pheromone-limits (n pheromone max min)
   "Checks for violations of pheromone limits and updates according to max and min values."
   (loop for i from 1 to n
@@ -278,38 +284,3 @@
 	     (ant-tour-length current)) 
      do (setf current (aref ants i))
      finally (return current)))
-
-;;
-;; MMAS with hyper-cube framework
-
-(defun mmas-hcf-pheromone-update (parameters colony stats state)
-  (let* ((ants (colony-ants colony))
-	 (n (parameters-n parameters))
-	 (pheromone (colony-pheromone colony))
-	 (rho (parameters-rho parameters))
-	 (heuristic (colony-heuristic colony))
-	 (choice-info (colony-choice-info colony))
-	 (alpha (parameters-alpha parameters))
-	 (beta (parameters-beta parameters))
-	 (cf (state-cf state))
-	 (restart-ant (statistics-restart-ant stats))
-	 (best-so-far-ant (statistics-best-ant stats)))
-    (evaporate n pheromone rho)
-    (if (state-bs-update state)
-	(let ((current-ant (find-best-ant (colony-n-ants colony) ants)))
-	  (cond ((< cf 0.04)
-		 (deposit-pheromone current-ant n pheromone 1))
-		((< cf 0.06)
-		 (deposit-pheromone current-ant n pheromone 2/3)
-		 (deposit-pheromone restart-ant n pheromone 1/3))
-		((< cf 0.08)
-		 (deposit-pheromone current-ant n pheromone 1/3)
-		 (deposit-pheromone restart-ant n pheromone 2/3))
-		(t (deposit-pheromone restart-ant n pheromone 1))))
-	(deposit-pheromone best-so-far-ant n pheromone 1))
-    (verify-pheromone-limits (parameters-n parameters)
-			     (colony-pheromone colony)
-			     (colony-trail-max colony)
-			     (colony-trail-min colony))
-    (update-choice-info n pheromone heuristic choice-info alpha beta)))
-
