@@ -15,15 +15,15 @@
 ;;; handles for the specific problem instances
 ;;;
 
-(defparameter *ccp01* "/Users/jast/workspace/datasets/knapsacklib/mkp/ccp/p1.txt")
-(defparameter *ccp02* "/Users/jast/workspace/datasets/knapsacklib/mkp/ccp/p2.txt")
-(defparameter *ccp03* "/Users/jast/workspace/datasets/knapsacklib/mkp/ccp/p3.txt")
-(defparameter *ccp04* "/Users/jast/workspace/datasets/knapsacklib/mkp/ccp/p4.txt")
-(defparameter *ccp05* "/Users/jast/workspace/datasets/knapsacklib/mkp/ccp/p5.txt")
-(defparameter *ccp06* "/Users/jast/workspace/datasets/knapsacklib/mkp/ccp/p6.txt")
-(defparameter *ccp07* "/Users/jast/workspace/datasets/knapsacklib/mkp/ccp/p7.txt")
+(defparameter *ccp01* "~/datasets/knapsacklib/mkp/ccp/p1.txt")
+(defparameter *ccp02* "~/datasets/knapsacklib/mkp/ccp/p2.txt")
+(defparameter *ccp03* "~/datasets/knapsacklib/mkp/ccp/p3.txt")
+(defparameter *ccp04* "~/datasets/knapsacklib/mkp/ccp/p4.txt")
+(defparameter *ccp05* "~/datasets/knapsacklib/mkp/ccp/p5.txt")
+(defparameter *ccp06* "~/datasets/knapsacklib/mkp/ccp/p6.txt")
+(defparameter *ccp07* "~/datasets/knapsacklib/mkp/ccp/p7.txt")
 
-(defparameter *gk01*  "/Users/jast/workspace/datasets/knapsacklib/mkp/gk/mk_gk01.txt")
+(defparameter *gk01*  "~/datasets/knapsacklib/mkp/gk/mk_gk01.txt")
 
 
 ;;;

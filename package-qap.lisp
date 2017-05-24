@@ -6,5 +6,3 @@
 	   #:change-update-qap
 	   #:2-opt-qap
 	   ))
-  
-  

@@ -5,5 +5,3 @@
 	   #:read-problem-data
 	   #:2-opt-tsp
 	   #:eil51 #:burma14 #:kroA100 #:d198 #:lin318 #:pcb442))
-  
-  

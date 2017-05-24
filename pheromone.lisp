@@ -37,7 +37,6 @@
 
 (defun update-trail-min-value (parameters state trail-max)
   "Return initial lower bound pheromone value according to the Ant System."
-  ;(declare (ignore state))
   (case (parameters-ant-system parameters)
     ;; reverted to previous formula. The 2nd drastically worsen the results (see below)
     (:mmas (let ((p-x (exp (/ (log 0.05) (parameters-n parameters))))
@@ -51,17 +50,6 @@
 		   (* p-x (1- avg)))
 		trail-max)))
     (otherwise 1.0)))
-
-;;; makes results worse on std mmas (see above)
-; (let ((new-min 
-;	(if (parameters-local-search parameters)
-;	    (/ trail-max (* 2.0 (parameters-n parameters)))
-;	    (let* ((p-x (exp (/ (log 0.05) (parameters-n parameters))))
-;		   (avg (/ (1+ (parameters-n parameters)) 2)))
-;	      (* (/ (1- p-x) (* p-x (1- avg))) trail-max)))))
-;  (if (> new-min 0.0) new-min 0.0005)))
-;;;
-
 
 (defun initial-trail-value (parameters max)
   "Return initial pheromone value according to the Ant System."

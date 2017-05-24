@@ -82,10 +82,3 @@
 			(setf value-best (aref choice-info (1- (+ nc i)))))))
 	   (setf (aref tour step) next-city)
 	   (setf (aref visited next-city) t)))))
-
-
-
-;;
-;; contains some optimizations but it can still be improved
-;; WARNING: one compiler note still needs to be removed
-;;

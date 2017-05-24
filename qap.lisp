@@ -12,14 +12,14 @@
 ;;; handles for the specific problem instances
 ;;;
 
-(defparameter *nug12*  "/Users/jast/workspace/datasets/qaplib/instances/nug12.dat")
-(defparameter *nug14*  "/Users/jast/workspace/datasets/qaplib/instances/nug14.dat")
-(defparameter *nug15*  "/Users/jast/workspace/datasets/qaplib/instances/nug15.dat")
-(defparameter *nug17*  "/Users/jast/workspace/datasets/qaplib/instances/nug17.dat")
-(defparameter *nug18*  "/Users/jast/workspace/datasets/qaplib/instances/nug18.dat")
-(defparameter *nug20*  "/Users/jast/workspace/datasets/qaplib/instances/nug20.dat")
+(defparameter *nug12*  "~/datasets/qaplib/instances/nug12.dat")
+(defparameter *nug14*  "~/datasets/qaplib/instances/nug14.dat")
+(defparameter *nug15*  "~/datasets/qaplib/instances/nug15.dat")
+(defparameter *nug17*  "~/datasets/qaplib/instances/nug17.dat")
+(defparameter *nug18*  "~/datasets/qaplib/instances/nug18.dat")
+(defparameter *nug20*  "~/datasets/qaplib/instances/nug20.dat")
 
-(defparameter *tai20b* "/Users/jast/workspace/datasets/qaplib/instances/tai20b.dat")
+(defparameter *tai20b* "~/datasets/qaplib/instances/tai20b.dat")
 
 ;;;
 ;;; running aco for QAP
